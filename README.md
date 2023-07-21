@@ -1,6 +1,6 @@
 ## PNG
 
-This is a C++20 library which enables to read png images from a binary stream.
+This is a C++20 library which allows reading png images from a binary stream.
 
 I decided to create this because I wanted to learn how png images are stored.
 This project was made for educational purposes and may be discontinued at any time.
