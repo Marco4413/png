@@ -6,7 +6,14 @@ if [ ! -d 'out' ]; then
     mkdir out
 fi
 
+DIST=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+DFLAGS=''
+
+case "$DIST" in
+    'DBG') DFLAGS="$DFLAGS -g -DPNG_DEBUG" ;;
+esac
+
 SRC=$(find src -type f -name *.cpp)
-CFLAGS='-g -std=c++2a -Wall -Wextra -Isrc -Ilibs -lz'
+CFLAGS="-std=c++2a -Wall -Wextra -Isrc -Ilibs -lz $DFLAGS"
 
 g++ -o out/main $SRC $CFLAGS
