@@ -212,7 +212,7 @@ PNG::Result PNG::Image::Read(std::istream& in, PNG::Image& out)
     std::vector<uint8_t> intPixels; // Interlaced Pixels
     PNG_RETURN_IF_NOT_OK(PNG::DecompressData, ihdr.CompressionMethod, idat, intPixels);
 
-    PNG::ByteBuffer intPixelsBuf(intPixels.data(), intPixels.size());
+    PNG::ByteBuffer intPixelsBuf(intPixels);
     std::istream inIntPixels(&intPixelsBuf);
 
     size_t pixelSize = PNG::ColorType::GetBytesPerPixel(ihdr.ColorType, ihdr.BitDepth);

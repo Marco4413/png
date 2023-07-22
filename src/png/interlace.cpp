@@ -20,7 +20,7 @@ PNG::Result PNG::Adam7::DeinterlacePixels(uint8_t filterMethod, size_t width, si
         size_t passHeight = height / ROW_OFFSET[pass];
         
         passImage.resize(passWidth*passHeight*pixelSize+passHeight);
-        ByteBuffer passBuf(passImage.data(), passImage.size());
+        ByteBuffer passBuf(passImage);
         std::istream inPass(&passBuf);
 
         PNG_RETURN_IF_NOT_OK(ReadBuffer, in, passImage.data(), passImage.size());

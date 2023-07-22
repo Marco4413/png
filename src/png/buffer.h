@@ -29,13 +29,16 @@ namespace PNG
     class ByteBuffer : public std::streambuf
     {
     public:
-        ByteBuffer(void* begin, void* end)
+        ByteBuffer(const void* begin, const void* end)
         {
             setg((char*)begin, (char*)begin, (char*)end);
         }
 
-        ByteBuffer(void* buf, size_t bufLen)
-            : ByteBuffer(buf, (char*)buf + bufLen) {}
+        ByteBuffer(const void* buf, size_t bufLen)
+            : ByteBuffer(buf, (char*)buf + bufLen) { }
+
+        ByteBuffer(const std::vector<uint8_t>& v)
+            : ByteBuffer(v.data(), v.size()) { }
     };
 }
 
