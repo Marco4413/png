@@ -1,4 +1,5 @@
 #include <assert.h>
+
 #include <fstream>
 #include <iostream>
 
@@ -7,8 +8,6 @@
 // #define MANUAL_READING
 
 #ifdef MANUAL_READING
-
-#include <cstring>
 
 #define REVERSE_U32(u32) \
     ( (u32) << 24) | \

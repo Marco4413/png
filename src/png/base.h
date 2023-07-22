@@ -1,0 +1,106 @@
+#pragma once
+
+#ifndef _PNG_BASE_H
+#define _PNG_BASE_H
+
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <cstring>
+#include <istream>
+#include <vector>
+
+#define PNG_ENABLE_ASSERTS
+
+#define PNG_RETURN_IF_NOT_OK(func, ...) \
+    do { \
+        auto rres = (func)( __VA_ARGS__ ); \
+        if (rres != Result::OK) \
+            return rres; \
+    } while (0)
+
+#ifdef PNG_ENABLE_ASSERTS
+
+#define PNG_ASSERT(cond, msg) \
+    do { \
+        if (!(cond)) { \
+            printf("%s:%d: Assert (%s) failed: %s\n", __FILE__, __LINE__, #cond, msg); \
+            exit(1); \
+        } \
+    } while (0)
+
+#define PNG_ASSERTF(cond, fmt, ...) \
+    do { \
+        if (!(cond)) { \
+            printf("%s:%d: Assert (%s) failed: ", __FILE__, __LINE__, #cond); \
+            printf(fmt, __VA_ARGS__ ); \
+            printf("\n"); \
+            exit(1); \
+        } \
+    } while (0)
+
+#else // PNG_ENABLE_ASSERTS
+
+#define PNG_ASSERT(cond, msg)
+#define PNG_ASSERTF(cond, fmt, ...)
+
+#endif // PNG_ENABLE_ASSERTS
+
+namespace PNG
+{
+    const size_t PNG_SIGNATURE_LEN = 8;
+    const uint8_t PNG_SIGNATURE[PNG_SIGNATURE_LEN] {137, 80, 78, 71, 13, 10, 26, 10};
+
+    enum class Result
+    {
+        OK,
+        Unknown,
+        UnexpectedEOF,
+        UnexpectedChunkType,
+        UnknownCompressionMethod,
+        UnknownFilterMethod,
+        UnknownFilterType,
+        UnknownInterlaceMethod,
+        InvalidSignature,
+        InvalidColorType,
+        InvalidBitDepth,
+        InvalidPixelBuffer,
+        InvalidImageSize,
+        ZLib_NotAvailable,
+        ZLib_DataError,
+        /* TODO: Custom ZLib implementation
+        ZLib_InvalidCompressionMethod,
+        ZLib_InvalidLZ77WindowSize,
+        ZLib_FCHECKFailed,
+        */
+    };
+    
+    const char* ResultToString(Result res);
+
+    template<typename T>
+    class ArrayView2D
+    {
+    private:
+        T* m_Data;
+        const size_t m_StartOffset;
+        const size_t m_Stride;
+    public:
+        ArrayView2D(T* data, size_t startOffset, size_t stride)
+            : m_Data(data), m_StartOffset(startOffset), m_Stride(stride) { }
+        ArrayView2D(const T* data, size_t startOffset, size_t stride)
+            : ArrayView2D((T*)data, startOffset, stride) { }
+
+        T* operator[](size_t y)
+        {
+            return &m_Data[m_StartOffset + m_Stride * y];
+        }
+
+        const T* operator[](size_t y) const
+        {
+            return &m_Data[m_StartOffset + m_Stride * y];
+        }
+    };
+} 
+
+#endif // _PNG_BASE_H
