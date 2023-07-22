@@ -18,9 +18,13 @@ PNG::Result PNG::Adam7::DeinterlacePixels(uint8_t filterMethod, size_t width, si
     for (size_t pass = 0; pass < 7; pass++) {
         size_t passWidth  = width  / COL_OFFSET[pass];
         size_t passHeight = height / ROW_OFFSET[pass];
+        
         passImage.resize(passWidth*passHeight*pixelSize+passHeight);
+        ByteBuffer passBuf(passImage.data(), passImage.size());
+        std::istream inPass(&passBuf);
+
         PNG_RETURN_IF_NOT_OK(ReadBuffer, in, passImage.data(), passImage.size());
-        PNG_RETURN_IF_NOT_OK(UnfilterPixels, filterMethod, passWidth, passHeight, pixelSize, passImage, passImage);
+        PNG_RETURN_IF_NOT_OK(UnfilterPixels, filterMethod, passWidth, passHeight, pixelSize, inPass, passImage);
         for (size_t py = 0; py < passHeight; py++) {
             for (size_t px = 0; px < passWidth; px++) {
                 size_t outY = STARTING_ROW[pass] + py * ROW_OFFSET[pass];
@@ -39,9 +43,7 @@ PNG::Result PNG::DeinterlacePixels(uint8_t method, uint8_t filterMethod, size_t 
     out.resize(0);
     switch (method) {
     case InterlaceMethod::NONE:
-        out.reserve(width*height*pixelSize+height);
-        PNG_RETURN_IF_NOT_OK(ReadUntilEOF, in, out);
-        return UnfilterPixels(filterMethod, width, height, pixelSize, out, out);
+        return UnfilterPixels(filterMethod, width, height, pixelSize, in, out);
     case InterlaceMethod::ADAM7:
         return Adam7::DeinterlacePixels(filterMethod, width, height, pixelSize, in, out);
     default:
