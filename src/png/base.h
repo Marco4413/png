@@ -11,7 +11,9 @@
 #include <istream>
 #include <vector>
 
+#ifdef PNG_DEBUG
 #define PNG_ENABLE_ASSERTS
+#endif // PNG_DEBUG
 
 #define PNG_RETURN_IF_NOT_OK(func, ...) \
     do { \
@@ -42,10 +44,20 @@
 
 #else // PNG_ENABLE_ASSERTS
 
-#define PNG_ASSERT(cond, msg)
-#define PNG_ASSERTF(cond, fmt, ...)
+#define PNG_ASSERT(cond, msg) (void)(cond); (void)(msg)
+#define PNG_ASSERTF(cond, fmt, ...) (void)(cond); (void)(fmt)
 
 #endif // PNG_ENABLE_ASSERTS
+
+#define PNG_UNREACHABLE(msg) \
+    printf("%s:%d: Unreachable: %s\n", __FILE__, __LINE__, msg); \
+    exit(1)
+
+#define PNG_UNREACHABLEF(fmt, ...) \
+    printf("%s:%d: Unreachable: ", __FILE__, __LINE__); \
+    printf(fmt, __VA_ARGS__ ); \
+    printf("\n"); \
+    exit(1)
 
 namespace PNG
 {

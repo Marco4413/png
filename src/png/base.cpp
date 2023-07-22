@@ -40,6 +40,6 @@ const char* PNG::ResultToString(PNG::Result res)
     case Result::ZLib_DataError:
         return "ZLib_DataError";
     default:
-        PNG_ASSERTF(false, "Missing %d code.", (int)res);
+        PNG_UNREACHABLEF("Missing %d code.", (int)res);
     }
 }
