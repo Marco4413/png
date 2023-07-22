@@ -28,7 +28,7 @@ namespace PNG
         uint32_t CRC;
     public:
         Chunk() = default;
-        ~Chunk() { delete[] Data; }
+        virtual ~Chunk() { delete[] Data; }
 
         /* TODO: CRC Implementation
         uint32_t CalculateCRC(const PNG::CRC& crcDevice) const;
