@@ -29,6 +29,8 @@ const char* PNG::ResultToString(PNG::Result res)
         return "InvalidPixelBuffer";
     case Result::InvalidImageSize:
         return "InvalidImageSize";
+    case Result::UpdatingClosedStreamError:
+        return "UpdatingClosedStreamError";
     /* TODO: Custom ZLib implementation
     case Result::ZLib_InvalidCompressionMethod:
         return "ZLib_InvalidCompressionMethod";
@@ -40,6 +42,6 @@ const char* PNG::ResultToString(PNG::Result res)
     case Result::ZLib_DataError:
         return "ZLib_DataError";
     default:
-        PNG_UNREACHABLEF("Missing %d code.", (int)res);
+        PNG_UNREACHABLEF("PNG::ResultToString case missing (%d).", (int)res);
     }
 }
