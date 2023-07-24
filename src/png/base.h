@@ -11,10 +11,6 @@
 #include <istream>
 #include <vector>
 
-#ifdef PNG_DEBUG
-#define PNG_ENABLE_ASSERTS
-#endif // PNG_DEBUG
-
 #define PNG_RETURN_IF_NOT_OK(func, ...) \
     do { \
         auto rres = (func)( __VA_ARGS__ ); \
@@ -22,7 +18,7 @@
             return rres; \
     } while (0)
 
-#ifdef PNG_ENABLE_ASSERTS
+#ifdef PNG_DEBUG
 
 #define PNG_ASSERT(cond, msg) \
     do { \
@@ -42,22 +38,39 @@
         } \
     } while (0)
 
-#else // PNG_ENABLE_ASSERTS
+#define PNG_LDEBUG(msg) \
+        printf("%s:%d: Debug: %s\n", __FILE__, __LINE__, msg)
 
-#define PNG_ASSERT(cond, msg) (void)(cond); (void)(msg)
-#define PNG_ASSERTF(cond, fmt, ...) (void)(cond); (void)(fmt)
+#define PNG_LDEBUGF(fmt, ...) \
+    do { \
+        printf("%s:%d: Debug: ", __FILE__, __LINE__); \
+        printf(fmt, __VA_ARGS__ ); \
+        printf("\n"); \
+    } while (0)
 
-#endif // PNG_ENABLE_ASSERTS
+#else // PNG_DEBUG
+
+#define PNG_ASSERT(cond, msg) do { (void)(cond); (void)(msg); } while (0)
+#define PNG_ASSERTF(cond, fmt, ...) do { (void)(cond); (void)(fmt); } while (0)
+
+#define PNG_LDEBUG(msg) do { (void)(msg); } while (0)
+#define PNG_LDEBUGF(fmt, ...) do { (void)(fmt); } while (0)
+
+#endif // PNG_DEBUG
 
 #define PNG_UNREACHABLE(msg) \
-    printf("%s:%d: Unreachable: %s\n", __FILE__, __LINE__, msg); \
-    exit(1)
+    do { \
+        printf("%s:%d: Unreachable: %s\n", __FILE__, __LINE__, msg); \
+        exit(1); \
+    } while (0)
 
 #define PNG_UNREACHABLEF(fmt, ...) \
-    printf("%s:%d: Unreachable: ", __FILE__, __LINE__); \
-    printf(fmt, __VA_ARGS__ ); \
-    printf("\n"); \
-    exit(1)
+    do { \
+        printf("%s:%d: Unreachable: ", __FILE__, __LINE__); \
+        printf(fmt, __VA_ARGS__ ); \
+        printf("\n"); \
+        exit(1); \
+    } while (0)
 
 namespace PNG
 {
