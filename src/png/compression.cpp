@@ -77,6 +77,7 @@ PNG::Result PNG::ZLib::DecompressData(IStream& in, OStream& out)
                 break;
             }
 
+            inSize += inf.avail_in;
             inf.avail_in = inSize;
             inf.next_in = inBuffer;
         }
