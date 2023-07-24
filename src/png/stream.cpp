@@ -53,17 +53,12 @@ PNG::Result PNG::DynamicByteStream::ReadBuffer(void* buf, size_t bufLen, size_t*
             avail = GetAvailable();
         }
 
-        if (avail < bufLen) {
-            std::lock_guard<std::mutex> lock(m_IMutex);
-            memcpy(buf, m_IBuffer.data() + m_ICursor, avail);
-            m_ICursor = m_IBuffer.size();
-            *bytesRead = avail;
-        } else {
-            std::lock_guard<std::mutex> lock(m_IMutex);
-            memcpy(buf, m_IBuffer.data() + m_ICursor, bufLen);
-            m_ICursor += bufLen;
-            *bytesRead = bufLen;
-        }
+        std::lock_guard<std::mutex> lock(m_IMutex);
+        size_t rLen = avail < bufLen ? avail : bufLen;
+        memcpy(buf, m_IBuffer.data() + m_ICursor, rLen);
+        m_ICursor += rLen;
+        *bytesRead = rLen;
+
         return PNG::Result::OK;
     }
 
