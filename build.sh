@@ -14,6 +14,6 @@ case "$DIST" in
 esac
 
 SRC=$(find src -type f -name *.cpp)
-CFLAGS="-std=c++2a -Wall -Wextra -Isrc -Ilibs -lz $DFLAGS"
+CFLAGS="-std=c++2a -Wall -Wextra -Isrc -Ilibs -lz -lpthread $DFLAGS"
 
 g++ -o out/main $SRC $CFLAGS
