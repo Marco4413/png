@@ -4,6 +4,7 @@
 #define _PNG_IMAGE_H
 
 #include "png/base.h"
+#include "png/stream.h"
 
 namespace PNG
 {
@@ -58,7 +59,9 @@ namespace PNG
         inline Color* operator[](size_t y) { return &m_Pixels[y * m_Width]; }
         
         Result LoadRawPixels(size_t samples, size_t bitDepth, std::vector<uint8_t>& in);
-        static Result Read(std::istream& in, Image& out);
+        
+        static Result Read(IStream& in, Image& out);
+        static Result ReadMT(IStream& in, Image& out, std::chrono::milliseconds timeout = std::chrono::milliseconds(1));
     };
 }
 

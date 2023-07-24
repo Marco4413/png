@@ -4,6 +4,7 @@
 #define _PNG_CHUNK_H
 
 #include "png/base.h"
+#include "png/stream.h"
 
 namespace PNG
 {
@@ -34,7 +35,7 @@ namespace PNG
         uint32_t CalculateCRC(const PNG::CRC& crcDevice) const;
         */
         
-        static Result Read(std::istream& input, Chunk& chunk);
+        static Result Read(IStream& input, Chunk& chunk);
     };
 
     class IHDRChunk

@@ -4,36 +4,91 @@
 
 #include <zlib/zlib.h>
 
-PNG::Result PNG::ZLib::DecompressData(const std::vector<uint8_t>& in, std::vector<uint8_t>& out)
+PNG::Result PNG::ZLib::DecompressData(IStream& in, OStream& out)
 {
-    const size_t K32 = 32768; // 32K of data
-    out.resize(K32);
+    const size_t IN_CAPACITY = 32768; // 32K
+    size_t inSize = 0;
+    Bytef inBuffer[IN_CAPACITY];
+    PNG_RETURN_IF_NOT_OK(in.ReadBuffer, inBuffer, IN_CAPACITY, &inSize);
+
+    const size_t OUT_CAPACITY = 32768; // 32K
+    Bytef outBuffer[OUT_CAPACITY];
+
+    /*
+    +-------------------------+
+    |       IN_CAPACITY       |
+    +-------------------------+
+    +------------------+
+    |      inSize      |
+    +------------------+
+    +-------+----------+
+    | bRead | avail_in |
+    +-------+----------+
+    ^
+    | inBuffer
+    */
 
     z_stream inf;
     inf.zalloc = Z_NULL;
     inf.zfree = Z_NULL;
     inf.opaque = Z_NULL;
-    inf.avail_in = in.size();
-    inf.next_in = (uint8_t*)in.data();
-    inf.avail_out = out.size();
-    inf.next_out = out.data();
+    inf.avail_in = inSize;
+    inf.next_in = inBuffer;
+    inf.avail_out = OUT_CAPACITY;
+    inf.next_out = outBuffer;
 
+    auto pres = Result::OK;
     inflateInit(&inf);
     int zcode;
     do {
         zcode = inflate(&inf, Z_NO_FLUSH);
-        if (inf.avail_out == 0) {
-            out.resize(out.size() + K32);
-            inf.avail_out = K32;
-            inf.next_out = out.data() + out.size() - K32;
+        // Write to the buffer only when a meaningful amount of data is ready.
+        if (OUT_CAPACITY - inf.avail_out >= OUT_CAPACITY/4) {
+            pres = out.WriteBuffer(outBuffer, OUT_CAPACITY-inf.avail_out);
+            if (pres != Result::OK)
+                break;
+
+            // Flush data so that other threads, which have an Input access on `out`, can read it.
+            pres = out.Flush();
+            if (pres != Result::OK)
+                break;
+
+            inf.avail_out = OUT_CAPACITY;
+            inf.next_out = outBuffer;
         }
-    } while (zcode == Z_OK);
+
+        if (zcode == Z_STREAM_END) {
+            inflateEnd(&inf);
+            PNG_RETURN_IF_NOT_OK(out.WriteBuffer, outBuffer, OUT_CAPACITY-inf.avail_out);
+            PNG_RETURN_IF_NOT_OK(out.Flush);
+            PNG_LDEBUGF("PNG::ZLib::DecompressData inflated %ld bytes.", inf.total_out);
+            return PNG::Result::OK;
+        }
+
+        if (zcode == Z_BUF_ERROR || inf.avail_in == 0) {
+            if (inf.avail_in != 0)
+                memcpy(inBuffer, inf.next_in, inf.avail_in);
+
+            pres = in.ReadBuffer(inBuffer+inf.avail_in, IN_CAPACITY-inf.avail_in, &inSize);
+            if (pres != Result::OK) {
+                break;
+            } else if (inSize == 0) {
+                pres = Result::UnexpectedEOF;
+                break;
+            }
+
+            inf.avail_in = inSize;
+            inf.next_in = inBuffer;
+        }
+    } while (zcode == Z_OK || zcode == Z_BUF_ERROR);
     inflateEnd(&inf);
 
-    if (zcode == Z_STREAM_END) {
-        out.resize(out.size() - inf.avail_out);
-        return Result::OK;
-    }
+    if (pres != Result::OK)
+        return pres;
+
+    PNG_LDEBUGF("PNG::ZLib::DecompressData error code (%d).", zcode);
+    if (inf.msg)
+        PNG_LDEBUGF("PNG::ZLib::DecompressData error message: %s.", inf.msg);
 
     return Result::ZLib_DataError;
 
@@ -70,7 +125,7 @@ PNG::Result PNG::ZLib::DecompressData(const std::vector<uint8_t>& in, std::vecto
 
 #endif // PNG_USE_ZLIB
 
-PNG::Result PNG::DecompressData(uint8_t method, const std::vector<uint8_t>& in, std::vector<uint8_t>& out)
+PNG::Result PNG::DecompressData(uint8_t method, IStream& in, OStream& out)
 {
     switch (method) {
     case CompressionMethod::ZLIB:

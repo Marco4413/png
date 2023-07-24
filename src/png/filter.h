@@ -4,6 +4,7 @@
 #define _PNG_FILTER_H
 
 #include "png/base.h"
+#include "png/stream.h"
 
 namespace PNG
 {
@@ -23,10 +24,10 @@ namespace PNG
             const uint8_t PAETH = 4;
         }
 
-        Result UnfilterPixels(size_t width, size_t height, size_t pixelSize, std::istream& in, std::vector<uint8_t>& out);
+        Result UnfilterPixels(size_t width, size_t height, size_t pixelSize, IStream& in, std::vector<uint8_t>& out);
     }
 
-    Result UnfilterPixels(uint8_t method, size_t width, size_t height, size_t pixelSize, std::istream& in, std::vector<uint8_t>& out);
+    Result UnfilterPixels(uint8_t method, size_t width, size_t height, size_t pixelSize, IStream& in, std::vector<uint8_t>& out);
 }
 
 #endif // _PNG_FILTER_H

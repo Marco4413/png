@@ -1,9 +1,10 @@
 #include "png/image.h"
 
-#include "png/buffer.h"
 #include "png/chunk.h"
 #include "png/compression.h"
 #include "png/interlace.h"
+
+#include <thread>
 
 bool PNG::ColorType::IsValidBitDepth(uint8_t colorType, uint8_t bitDepth)
 {
@@ -169,18 +170,21 @@ PNG::Result PNG::Image::LoadRawPixels(size_t colorType, size_t bitDepth, std::ve
     return Result::OK;
 }
 
-PNG::Result PNG::Image::Read(std::istream& in, PNG::Image& out)
+PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
 {
-    uint8_t sig[PNG::PNG_SIGNATURE_LEN];
-    PNG_RETURN_IF_NOT_OK(PNG::ReadBuffer, in, sig, PNG::PNG_SIGNATURE_LEN);
-    if (memcmp(sig, PNG::PNG_SIGNATURE, PNG::PNG_SIGNATURE_LEN) != 0)
-        return PNG::Result::InvalidSignature;
+    uint8_t sig[PNG_SIGNATURE_LEN];
+    PNG_RETURN_IF_NOT_OK(in.ReadBuffer, sig, PNG_SIGNATURE_LEN);
+    if (memcmp(sig, PNG_SIGNATURE, PNG_SIGNATURE_LEN) != 0)
+        return Result::InvalidSignature;
 
     // Reading IHDR (Image Header)
     PNG::Chunk chunk;
     PNG::IHDRChunk ihdr;
-    PNG_RETURN_IF_NOT_OK(PNG::Chunk::Read, in, chunk);
-    PNG_RETURN_IF_NOT_OK(PNG::IHDRChunk::Parse, chunk, ihdr);
+    PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
+    PNG_RETURN_IF_NOT_OK(IHDRChunk::Parse, chunk, ihdr);
+
+    if (ihdr.Width == 0 || ihdr.Height == 0)
+        return Result::InvalidImageSize;
 
     // If color has 0 samples per component then it is not valid
     if (!ColorType::GetSamples(ihdr.ColorType))
@@ -189,38 +193,132 @@ PNG::Result PNG::Image::Read(std::istream& in, PNG::Image& out)
         return Result::InvalidBitDepth;
 
     // Vector holding all IDATs (Deflated Image Data)
-    std::vector<uint8_t> idat;
-    while (chunk.Type != PNG::ChunkType::IEND) {
-        PNG_RETURN_IF_NOT_OK(PNG::Chunk::Read, in, chunk);
-        bool isAux = PNG::ChunkType::IsAncillary(chunk.Type);
+    
+    DynamicByteStream idat(std::chrono::milliseconds(0));
+    do {
+        PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
+        bool isAux = ChunkType::IsAncillary(chunk.Type);
 
         switch (chunk.Type) {
-        case PNG::ChunkType::IDAT: {
-            size_t begin = idat.size();
-            idat.resize(idat.size() + chunk.Length);
-            memcpy(idat.data() + begin, chunk.Data, chunk.Length);
-        }
-        case PNG::ChunkType::IEND:
+        case ChunkType::IDAT:
+            idat.WriteBuffer(chunk.Data, chunk.Length);
+            idat.Flush();
+        case ChunkType::IEND:
             break;
         default:
             // PLTE Chunk from the libpng standard isn't implemented yet.
             PNG_ASSERTF(isAux, "Mandatory chunk (%d) isn't supported yet.", chunk.Type);
         }
-    }
+    } while (chunk.Type != ChunkType::IEND);
+
+    DynamicByteStream intPixels(std::chrono::milliseconds(0)); // Interlaced Pixels
 
     // Inflating IDAT
-    std::vector<uint8_t> intPixels; // Interlaced Pixels
-    PNG_RETURN_IF_NOT_OK(PNG::DecompressData, ihdr.CompressionMethod, idat, intPixels);
-
-    PNG::ByteBuffer intPixelsBuf(intPixels);
-    std::istream inIntPixels(&intPixelsBuf);
-
-    size_t pixelSize = PNG::ColorType::GetBytesPerPixel(ihdr.ColorType, ihdr.BitDepth);
-    PNG_ASSERT(pixelSize > 0, "Pixel size is 0.");
+    PNG_RETURN_IF_NOT_OK(DecompressData, ihdr.CompressionMethod, idat, intPixels);
 
     std::vector<uint8_t> rawPixels;
-    PNG_RETURN_IF_NOT_OK(PNG::DeinterlacePixels, ihdr.InterlaceMethod, ihdr.FilterMethod, ihdr.Width, ihdr.Height, pixelSize, inIntPixels, rawPixels);
 
+    size_t pixelSize = ColorType::GetBytesPerPixel(ihdr.ColorType, ihdr.BitDepth);
+    PNG_ASSERT(pixelSize > 0, "Pixel size is 0.");
+
+    PNG_RETURN_IF_NOT_OK(DeinterlacePixels, ihdr.InterlaceMethod, ihdr.FilterMethod,
+        ihdr.Width, ihdr.Height, pixelSize, intPixels, rawPixels);
+
+    out.SetSize(ihdr.Width, ihdr.Height);
+    PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, rawPixels);
+
+    return Result::OK;
+}
+
+PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, std::chrono::milliseconds timeout)
+{
+    uint8_t sig[PNG_SIGNATURE_LEN];
+    PNG_RETURN_IF_NOT_OK(in.ReadBuffer, sig, PNG_SIGNATURE_LEN);
+    if (memcmp(sig, PNG_SIGNATURE, PNG_SIGNATURE_LEN) != 0)
+        return Result::InvalidSignature;
+
+    // Reading IHDR (Image Header)
+    PNG::Chunk chunk;
+    PNG::IHDRChunk ihdr;
+    PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
+    PNG_RETURN_IF_NOT_OK(IHDRChunk::Parse, chunk, ihdr);
+
+    if (ihdr.Width == 0 || ihdr.Height == 0)
+        return Result::InvalidImageSize;
+
+    // If color has 0 samples per component then it is not valid
+    if (!ColorType::GetSamples(ihdr.ColorType))
+        return Result::InvalidColorType;
+    if (!ColorType::IsValidBitDepth(ihdr.ColorType, ihdr.BitDepth))
+        return Result::InvalidBitDepth;
+
+    // Vector holding all IDATs (Deflated Image Data)
+    
+    DynamicByteStream idat(timeout);
+    Result readerTRes;
+
+
+    std::thread readerT([&in, &idat, &readerTRes]() {
+        size_t idats = 0;
+
+        Chunk chunk;
+        do {
+            readerTRes = Chunk::Read(in, chunk);
+            if (readerTRes != Result::OK)
+                return;
+
+            bool isAux = ChunkType::IsAncillary(chunk.Type);
+
+            switch (chunk.Type) {
+            case ChunkType::IDAT:
+                idats++;
+                idat.WriteBuffer(chunk.Data, chunk.Length);
+                idat.Flush();
+            case ChunkType::IEND:
+                break;
+            default:
+                // PLTE Chunk from the libpng standard isn't implemented yet.
+                PNG_ASSERTF(isAux, "Mandatory chunk (%d) isn't supported yet.", chunk.Type);
+            }
+        } while (chunk.Type != ChunkType::IEND);
+        // While reading IDATs, PNG::DecompressData can read the buffer in another thread
+    });
+
+    DynamicByteStream intPixels(timeout); // Interlaced Pixels
+    Result inflaterTRes;
+    std::thread inflaterT([&ihdr, &idat, &intPixels, &inflaterTRes]() {
+        // Inflating IDAT
+        inflaterTRes = DecompressData(ihdr.CompressionMethod, idat, intPixels);
+        // While inflating IDATs, PNG::DeinterlacePixels can execute and
+        //  PNG::Image::LoadRawPixels could read the vector as it gets filled
+    });
+    
+    std::vector<uint8_t> rawPixels;
+
+    Result deinterlacerTRes;
+    std::thread deinterlacerT([&ihdr, &intPixels, &rawPixels, &deinterlacerTRes]() {
+        size_t pixelSize = ColorType::GetBytesPerPixel(ihdr.ColorType, ihdr.BitDepth);
+        PNG_ASSERT(pixelSize > 0, "Pixel size is 0.");
+
+        deinterlacerTRes = DeinterlacePixels(ihdr.InterlaceMethod, ihdr.FilterMethod,
+            ihdr.Width, ihdr.Height, pixelSize, intPixels, rawPixels);
+    });
+
+    PNG_LDEBUG("Joining IDAT Reader.");
+    readerT.join();
+    PNG_LDEBUG("Joining IDAT Inflater.");
+    inflaterT.join();
+    PNG_LDEBUG("Joining Deinterlacer.");
+    deinterlacerT.join();
+
+    if (readerTRes != Result::OK)
+        return readerTRes;
+    if (inflaterTRes != Result::OK)
+        return inflaterTRes;
+    if (deinterlacerTRes != Result::OK)
+        return deinterlacerTRes;
+
+    PNG_LDEBUG("Loading raw pixels into Image.");
     out.SetSize(ihdr.Width, ihdr.Height);
     PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, rawPixels);
 

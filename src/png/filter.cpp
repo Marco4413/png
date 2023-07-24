@@ -1,8 +1,6 @@
 #include "png/filter.h"
 
-#include "png/buffer.h"
-
-PNG::Result PNG::AdaptiveFiltering::UnfilterPixels(size_t width, size_t height, size_t pixelSize, std::istream& in, std::vector<uint8_t>& _out)
+PNG::Result PNG::AdaptiveFiltering::UnfilterPixels(size_t width, size_t height, size_t pixelSize, IStream& in, std::vector<uint8_t>& _out)
 {
     size_t rowSize = width*pixelSize;
     size_t outSize = width*height*pixelSize;
@@ -15,7 +13,7 @@ PNG::Result PNG::AdaptiveFiltering::UnfilterPixels(size_t width, size_t height, 
     ArrayView2D<uint8_t> out(_out.data(), 0, rowSize);
 
     for (size_t y = 0; y < height; y++) {
-        PNG_RETURN_IF_NOT_OK(ReadBuffer, in, line.data(), rowSize + 1);
+        PNG_RETURN_IF_NOT_OK(in.ReadBuffer, line.data(), rowSize + 1);
         uint8_t filterType = line[0];
         switch (filterType) {
         case FilterType::NONE:
@@ -71,7 +69,7 @@ PNG::Result PNG::AdaptiveFiltering::UnfilterPixels(size_t width, size_t height, 
     return Result::OK;
 }
 
-PNG::Result PNG::UnfilterPixels(uint8_t method, size_t width, size_t height, size_t pixelSize, std::istream& in, std::vector<uint8_t>& out)
+PNG::Result PNG::UnfilterPixels(uint8_t method, size_t width, size_t height, size_t pixelSize, IStream& in, std::vector<uint8_t>& out)
 {
     switch (method) {
     case FilterMethod::ADAPTIVE_FILTERING:

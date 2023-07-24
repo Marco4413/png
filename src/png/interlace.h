@@ -4,6 +4,7 @@
 #define _PNG_INTERLACE_H
 
 #include "png/base.h"
+#include "png/stream.h"
 
 namespace PNG
 {
@@ -15,10 +16,10 @@ namespace PNG
 
     namespace Adam7
     {
-        Result DeinterlacePixels(uint8_t filterMethod, size_t width, size_t height, size_t pixelSize, std::istream& in, std::vector<uint8_t>& out);
+        Result DeinterlacePixels(uint8_t filterMethod, size_t width, size_t height, size_t pixelSize, IStream& in, std::vector<uint8_t>& out);
     }
 
-    Result DeinterlacePixels(uint8_t method, uint8_t filterMethod, size_t width, size_t height, size_t pixelSize, std::istream& in, std::vector<uint8_t>& out);
+    Result DeinterlacePixels(uint8_t method, uint8_t filterMethod, size_t width, size_t height, size_t pixelSize, IStream& in, std::vector<uint8_t>& out);
 }
 
 #endif // _PNG_INTERLACE_H

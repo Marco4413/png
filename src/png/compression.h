@@ -4,6 +4,7 @@
 #define _PNG_COMPRESSION_H
 
 #include "png/base.h"
+#include "png/stream.h"
 
 #define PNG_USE_ZLIB
 
@@ -26,11 +27,11 @@ namespace PNG
             const uint8_t Slowest = 3;
         }*/
 
-        Result DecompressData(const std::vector<uint8_t>& in, std::vector<uint8_t>& out);
+        Result DecompressData(IStream& in, OStream& out);
     }
 #endif // PNG_USE_ZLIB
 
-    Result DecompressData(uint8_t method, const std::vector<uint8_t>& in, std::vector<uint8_t>& out);
+    Result DecompressData(uint8_t method, IStream& in, OStream& out);
 }
 
 #endif // _PNG_COMPRESSION_H

@@ -8,7 +8,6 @@
 #include <stdlib.h>
 
 #include <cstring>
-#include <istream>
 #include <vector>
 
 #define PNG_RETURN_IF_NOT_OK(func, ...) \
