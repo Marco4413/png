@@ -61,7 +61,7 @@ namespace PNG
         Result LoadRawPixels(size_t samples, size_t bitDepth, std::vector<uint8_t>& in);
         
         static Result Read(IStream& in, Image& out);
-        static Result ReadMT(IStream& in, Image& out, std::chrono::milliseconds timeout = std::chrono::milliseconds(1));
+        static Result ReadMT(IStream& in, Image& out);
     };
 }
 

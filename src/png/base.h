@@ -91,6 +91,7 @@ namespace PNG
         InvalidBitDepth,
         InvalidPixelBuffer,
         InvalidImageSize,
+        UpdatingClosedStreamError,
         ZLib_NotAvailable,
         ZLib_DataError,
         /* TODO: Custom ZLib implementation

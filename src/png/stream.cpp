@@ -41,36 +41,50 @@ PNG::Result PNG::ByteStream::ReadBuffer(void* buf, size_t bufLen, size_t* bytesR
 
 PNG::Result PNG::DynamicByteStream::ReadBuffer(void* buf, size_t bufLen, size_t* bytesRead)
 {
-    {
-        m_IMutex.lock();
-        size_t avail = m_IBuffer.size() - m_ICursor;
-        m_IMutex.unlock();
-        if (avail < bufLen)
-            std::this_thread::sleep_for(m_ITimeout);
-    }
+    // If bytesRead is not nullptr then the caller wants to receive a variable amount of bytes
+    if (bytesRead) {
+        size_t avail = GetAvailable();
+        while (avail == 0) {
+            // If the Stream is closed, EOF has been reached
+            if (m_Closed)
+                return Result::UnexpectedEOF;
+            // Otherwise we wait for m_IPollInterval and check again
+            std::this_thread::sleep_for(m_IPollInterval);
+            avail = GetAvailable();
+        }
 
-    std::lock_guard<std::mutex> lock(m_IMutex);
-
-    size_t avail = m_IBuffer.size() - m_ICursor;
-    if (avail < bufLen) {
-        memcpy(buf, m_IBuffer.data() + m_ICursor, avail);
-        m_ICursor = m_IBuffer.size();
-        if (!bytesRead)
-            return Result::UnexpectedEOF;
-        *bytesRead = avail;
+        if (avail < bufLen) {
+            std::lock_guard<std::mutex> lock(m_IMutex);
+            memcpy(buf, m_IBuffer.data() + m_ICursor, avail);
+            m_ICursor = m_IBuffer.size();
+            *bytesRead = avail;
+        } else {
+            std::lock_guard<std::mutex> lock(m_IMutex);
+            memcpy(buf, m_IBuffer.data() + m_ICursor, bufLen);
+            m_ICursor += bufLen;
+            *bytesRead = bufLen;
+        }
         return PNG::Result::OK;
     }
 
+    while (GetAvailable() < bufLen) {
+        if (m_Closed)
+            return Result::UnexpectedEOF;
+        std::this_thread::sleep_for(m_IPollInterval);
+    }
+
+    std::lock_guard<std::mutex> lock(m_IMutex);
     memcpy(buf, m_IBuffer.data() + m_ICursor, bufLen);
     m_ICursor += bufLen;
-    if (bytesRead)
-        *bytesRead = bufLen;
 
     return PNG::Result::OK;
 }
 
 PNG::Result PNG::DynamicByteStream::WriteBuffer(void* buf, size_t bufLen)
 {
+    if (m_Closed)
+        return Result::UpdatingClosedStreamError;
+
     std::lock_guard<std::mutex> lock(m_OMutex);
     size_t cur = m_OBuffer.size();
     m_OBuffer.resize(m_OBuffer.size() + bufLen);
@@ -80,6 +94,9 @@ PNG::Result PNG::DynamicByteStream::WriteBuffer(void* buf, size_t bufLen)
 
 PNG::Result PNG::DynamicByteStream::Flush()
 {
+    if (m_Closed)
+        return Result::UpdatingClosedStreamError;
+
     std::lock_guard<std::mutex> iLock(m_IMutex);
     std::lock_guard<std::mutex> oLock(m_OMutex);
 
@@ -88,5 +105,12 @@ PNG::Result PNG::DynamicByteStream::Flush()
     memcpy(m_IBuffer.data()+writeCursor, m_OBuffer.data(), m_OBuffer.size());
     m_OBuffer.resize(0);
     
+    return Result::OK;
+}
+
+PNG::Result PNG::DynamicByteStream::Close()
+{
+    PNG_RETURN_IF_NOT_OK(Flush);
+    m_Closed = true;
     return Result::OK;
 }

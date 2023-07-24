@@ -194,7 +194,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
 
     // Vector holding all IDATs (Deflated Image Data)
     
-    DynamicByteStream idat(std::chrono::milliseconds(0));
+    DynamicByteStream idat;
     do {
         PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
         bool isAux = ChunkType::IsAncillary(chunk.Type);
@@ -210,11 +210,13 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
             PNG_ASSERTF(isAux, "Mandatory chunk (%d) isn't supported yet.", chunk.Type);
         }
     } while (chunk.Type != ChunkType::IEND);
+    idat.Close();
 
-    DynamicByteStream intPixels(std::chrono::milliseconds(0)); // Interlaced Pixels
+    DynamicByteStream intPixels; // Interlaced Pixels
 
     // Inflating IDAT
     PNG_RETURN_IF_NOT_OK(DecompressData, ihdr.CompressionMethod, idat, intPixels);
+    intPixels.Close();
 
     std::vector<uint8_t> rawPixels;
 
@@ -230,7 +232,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
     return Result::OK;
 }
 
-PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, std::chrono::milliseconds timeout)
+PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
 {
     uint8_t sig[PNG_SIGNATURE_LEN];
     PNG_RETURN_IF_NOT_OK(in.ReadBuffer, sig, PNG_SIGNATURE_LEN);
@@ -254,9 +256,8 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, std::chrono::millis
 
     // Vector holding all IDATs (Deflated Image Data)
     
-    DynamicByteStream idat(timeout);
+    DynamicByteStream idat;
     Result readerTRes;
-
 
     std::thread readerT([&in, &idat, &readerTRes]() {
         size_t idats = 0;
@@ -284,7 +285,7 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, std::chrono::millis
         // While reading IDATs, PNG::DecompressData can read the buffer in another thread
     });
 
-    DynamicByteStream intPixels(timeout); // Interlaced Pixels
+    DynamicByteStream intPixels; // Interlaced Pixels
     Result inflaterTRes;
     std::thread inflaterT([&ihdr, &idat, &intPixels, &inflaterTRes]() {
         // Inflating IDAT
@@ -306,8 +307,10 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, std::chrono::millis
 
     PNG_LDEBUG("Joining IDAT Reader.");
     readerT.join();
+    idat.Close();
     PNG_LDEBUG("Joining IDAT Inflater.");
     inflaterT.join();
+    intPixels.Close();
     PNG_LDEBUG("Joining Deinterlacer.");
     deinterlacerT.join();
 

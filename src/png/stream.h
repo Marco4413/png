@@ -95,12 +95,12 @@ namespace PNG
     class DynamicByteStream : public IOStream
     {
     public:
-        DynamicByteStream(std::chrono::milliseconds timeout)
-            : m_ITimeout(timeout) { }
-        
+        DynamicByteStream(std::chrono::milliseconds pollInterval)
+            : m_IPollInterval(pollInterval) { }
+
         DynamicByteStream()
             : DynamicByteStream(std::chrono::milliseconds(1)) { }
-        
+
         std::vector<uint8_t>& GetBuffer() { return m_IBuffer; }
         const std::vector<uint8_t>& GetBuffer() const { return m_IBuffer; }
 
@@ -108,14 +108,26 @@ namespace PNG
         virtual Result WriteBuffer(void* buf, size_t bufLen) override;
         virtual Result Flush() override;
 
+        bool IsClosed() const { return m_Closed; }
+        virtual Result Close();
+
     protected:
+        size_t GetAvailable()
+        {
+            std::lock_guard<std::mutex> lock(m_IMutex);
+            return m_IBuffer.size() - m_ICursor;
+        }
+
         std::vector<uint8_t> m_OBuffer;
         std::mutex m_OMutex;
 
-        std::chrono::milliseconds m_ITimeout;
+        std::chrono::milliseconds m_IPollInterval;
         size_t m_ICursor = 0;
+
         std::vector<uint8_t> m_IBuffer;
         std::mutex m_IMutex;
+
+        bool m_Closed = false;
     };
 }
 

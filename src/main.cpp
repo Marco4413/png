@@ -68,34 +68,29 @@ int main(int argc, char** argv)
     PNG::Image img;
     {
         ScopeTimer t("Multi Threaded Image Reading");
-        // NOTE: Debug Logging can change timings 
-        ASSERT_OK(PNG::Image::ReadMT, inFile, img, std::chrono::milliseconds(2));
+        ASSERT_OK(PNG::Image::ReadMT, inFile, img);
     }
 
     /*
     Some benchmarks I have done (while using a non-debug build):
-    2560x1440 (449 IDAT, NI, t1) ->
+    2560x1440 (449 IDAT, NI) ->
         ST 588ms
         MT 400ms
-    2560x1440 (511 IDAT, A7, t2) ->
+    2560x1440 (511 IDAT, A7) ->
         ST 570ms
         MT 390ms
-    800x600 (1 IDAT, NI, t1) ->
+    800x600 (1 IDAT, NI) ->
         ST 53ms
         MT 49ms
-    800x600 (30 IDAT, NI, t1) ->
+    800x600 (30 IDAT, NI) ->
         ST 72ms
         MT 61ms
-    800x600 (39 IDAT, A7, t1) ->
+    800x600 (39 IDAT, A7) ->
         ST 78ms
         MT 65ms
     
     NI: No Interlace
     A7: Adam7 Interlace
-    tx: Timeout of x ms (for multi-threaded timing)
-
-    The timeout is not perfect, sometimes data does not get produced fast enough for other threads to read.
-    However, this will depend on the CPU it is running on. So far the only tests that caused some issues were the ones that use A7.
     */
 
     size_t x = img.GetWidth() / 2;
