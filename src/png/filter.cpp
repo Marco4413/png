@@ -61,6 +61,7 @@ PNG::Result PNG::AdaptiveFiltering::UnfilterPixels(size_t width, size_t height, 
             }
             break;
         default:
+            PNG_LDEBUGF("Unknown filter type %d in image %ldx%ld (ps=%ld,sl=%ld,y=%ld).", filterType, width, height, pixelSize, line.size(), y);
             return Result::UnknownFilterType;
         }
     }
