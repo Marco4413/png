@@ -222,7 +222,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
             } else if (palette.size() > 0) {
                 return Result::DuplicatePalette;
             } else if (ihdr.ColorType == ColorType::PALETTE &&
-                (chunk.Length / 3) >= (size_t)(1 << ihdr.BitDepth)
+                (chunk.Length / 3) > (size_t)(1 << ihdr.BitDepth)
             ) {
                 return Result::InvalidPaletteSize;
             }
@@ -321,7 +321,7 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
                     readerTRes = Result::DuplicatePalette;
                     return;
                 } else if (ihdr.ColorType == ColorType::PALETTE &&
-                    (chunk.Length / 3) >= (size_t)(1 << ihdr.BitDepth)
+                    (chunk.Length / 3) > (size_t)(1 << ihdr.BitDepth)
                 ) {
                     readerTRes = Result::InvalidPaletteSize;
                     return;
