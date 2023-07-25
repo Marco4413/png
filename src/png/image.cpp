@@ -211,6 +211,9 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
 
     do {
         PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
+        if (chunk.CRC != chunk.CalculateCRC())
+            return Result::CorruptedChunk;
+
         bool isAux = ChunkType::IsAncillary(chunk.Type);
 
         switch (chunk.Type) {
@@ -307,6 +310,11 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
             readerTRes = Chunk::Read(in, chunk);
             if (readerTRes != Result::OK)
                 return;
+            
+            if (chunk.CRC != chunk.CalculateCRC()) {
+                readerTRes = Result::CorruptedChunk;
+                return;
+            }
             
             bool isAux = ChunkType::IsAncillary(chunk.Type);
 

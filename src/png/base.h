@@ -91,6 +91,7 @@ namespace PNG
         InvalidBitDepth,
         InvalidPixelBuffer,
         InvalidImageSize,
+        CorruptedChunk,
         DuplicatePalette,
         IllegalPaletteChunk,
         InvalidPaletteSize,

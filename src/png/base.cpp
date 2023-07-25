@@ -29,6 +29,8 @@ const char* PNG::ResultToString(PNG::Result res)
         return "InvalidPixelBuffer";
     case Result::InvalidImageSize:
         return "InvalidImageSize";
+    case Result::CorruptedChunk:
+        return "CorruptedChunk";
     case Result::DuplicatePalette:
         return "DuplicatePalette";
     case Result::IllegalPaletteChunk:

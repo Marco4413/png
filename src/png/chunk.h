@@ -32,10 +32,8 @@ namespace PNG
         Chunk() = default;
         virtual ~Chunk() { delete[] Data; }
 
-        /* TODO: CRC Implementation
-        uint32_t CalculateCRC(const PNG::CRC& crcDevice) const;
-        */
-        
+        uint32_t CalculateCRC() const;
+
         static Result Read(IStream& input, Chunk& chunk);
     };
 

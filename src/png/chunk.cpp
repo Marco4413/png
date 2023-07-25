@@ -1,5 +1,13 @@
 #include "png/chunk.h"
 
+#include "png/crc.h"
+
+uint32_t PNG::Chunk::CalculateCRC() const
+{
+    uint32_t c = CRC::Update(~0, Type);
+    return ~CRC::Update(c, Data, Length);
+}
+
 PNG::Result PNG::Chunk::Read(IStream& in, PNG::Chunk& chunk)
 {
     if (chunk.Data) {
