@@ -32,9 +32,9 @@ $ ./build.sh
 ### TODO
 
 1. ~~Splitting the project into multiple files~~
-2. CRC implementation
+2. ~~CRC implementation~~
 3. Writing images to streams
-4. PLTE Chunk support
+4. ~PLTE Chunk support (still got some issues to fix but they can be read)
 5. Custom ZLib implementation (maybe)
 
 ### Resources
