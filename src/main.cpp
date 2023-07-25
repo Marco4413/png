@@ -72,6 +72,7 @@ int main(int argc, char** argv)
     }
 
     /*
+    Commit @458c50a
     Some benchmarks I have done (while using a non-debug build):
     2560x1440 (449 IDAT, NI) ->
         ST 588ms
