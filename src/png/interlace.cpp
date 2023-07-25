@@ -2,7 +2,8 @@
 
 #include "png/filter.h"
 
-PNG::Result PNG::Adam7::DeinterlacePixels(uint8_t filterMethod, size_t width, size_t height, size_t pixelSize, IStream& in, std::vector<uint8_t>& _out)
+PNG::Result PNG::Adam7::DeinterlacePixels(uint8_t filterMethod, size_t width, size_t height,
+    size_t bitDepth, size_t samples, IStream& in, std::vector<uint8_t>& _out)
 {
     // http://www.libpng.org/pub/png/spec/1.2/PNG-Decoders.html#D.Progressive-display
     const size_t STARTING_COL[7] { 0, 4, 0, 2, 0, 1, 0 };
@@ -10,6 +11,8 @@ PNG::Result PNG::Adam7::DeinterlacePixels(uint8_t filterMethod, size_t width, si
     const size_t COL_OFFSET[7]   { 8, 8, 4, 4, 2, 2, 1 };
     const size_t ROW_OFFSET[7]   { 8, 8, 8, 4, 4, 2, 2 };
 
+    // PNG::UnfilterPixels also unpacks pixels
+    size_t pixelSize = BitsToBytes(bitDepth) * samples;
     _out.resize(width*height*pixelSize);
     ArrayView2D<uint8_t> out(_out.data(), 0, width*pixelSize);
 
@@ -18,7 +21,7 @@ PNG::Result PNG::Adam7::DeinterlacePixels(uint8_t filterMethod, size_t width, si
         size_t passWidth  = width  / COL_OFFSET[pass];
         size_t passHeight = height / ROW_OFFSET[pass];
 
-        PNG_RETURN_IF_NOT_OK(UnfilterPixels, filterMethod, passWidth, passHeight, pixelSize, in, passImage);
+        PNG_RETURN_IF_NOT_OK(UnfilterPixels, filterMethod, passWidth, passHeight, bitDepth*samples, in, passImage);
 
         for (size_t py = 0; py < passHeight; py++) {
             for (size_t px = 0; px < passWidth; px++) {
@@ -33,14 +36,15 @@ PNG::Result PNG::Adam7::DeinterlacePixels(uint8_t filterMethod, size_t width, si
     return Result::OK;
 }
 
-PNG::Result PNG::DeinterlacePixels(uint8_t method, uint8_t filterMethod, size_t width, size_t height, size_t pixelSize, IStream& in, std::vector<uint8_t>& out)
+PNG::Result PNG::DeinterlacePixels(uint8_t method, uint8_t filterMethod, size_t width, size_t height,
+    size_t bitDepth, size_t samples, IStream& in, std::vector<uint8_t>& out)
 {
     out.resize(0);
     switch (method) {
     case InterlaceMethod::NONE:
-        return UnfilterPixels(filterMethod, width, height, pixelSize, in, out);
+        return UnfilterPixels(filterMethod, width, height, bitDepth * samples, in, out);
     case InterlaceMethod::ADAM7:
-        return Adam7::DeinterlacePixels(filterMethod, width, height, pixelSize, in, out);
+        return Adam7::DeinterlacePixels(filterMethod, width, height, bitDepth, samples, in, out);
     default:
         return Result::UnknownInterlaceMethod;
     }

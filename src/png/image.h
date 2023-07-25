@@ -27,6 +27,21 @@ namespace PNG
     struct Color
     {
         float R, G, B, A;
+
+        Color(float r, float g, float b, float a)
+            : R(r), G(g), B(b), A(a) { }
+
+        Color(float r, float g, float b)
+            : Color(r, g, b, 1.0f) { }
+
+        Color(float gray, float alpha)
+            : Color(gray, gray, gray, alpha) { }
+
+        Color(float gray)
+            : Color(gray, 1.0f) { }
+
+        Color()
+            : Color(0.0f) { }
     };
 
     class Image
@@ -58,7 +73,7 @@ namespace PNG
         inline const Color* operator[](size_t y) const { return &m_Pixels[y * m_Width]; }
         inline Color* operator[](size_t y) { return &m_Pixels[y * m_Width]; }
         
-        Result LoadRawPixels(size_t samples, size_t bitDepth, std::vector<uint8_t>& in);
+        Result LoadRawPixels(size_t samples, size_t bitDepth, std::vector<Color>& palette, std::vector<uint8_t>& in);
         
         static Result Read(IStream& in, Image& out);
         static Result ReadMT(IStream& in, Image& out);

@@ -16,10 +16,12 @@ namespace PNG
 
     namespace Adam7
     {
-        Result DeinterlacePixels(uint8_t filterMethod, size_t width, size_t height, size_t pixelSize, IStream& in, std::vector<uint8_t>& out);
+        Result DeinterlacePixels(uint8_t filterMethod, size_t width, size_t height,
+            size_t bitDepth, size_t samples, IStream& in, std::vector<uint8_t>& out);
     }
 
-    Result DeinterlacePixels(uint8_t method, uint8_t filterMethod, size_t width, size_t height, size_t pixelSize, IStream& in, std::vector<uint8_t>& out);
+    Result DeinterlacePixels(uint8_t method, uint8_t filterMethod, size_t width, size_t height,
+        size_t bitDepth, size_t samples, IStream& in, std::vector<uint8_t>& out);
 }
 
 #endif // _PNG_INTERLACE_H

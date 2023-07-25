@@ -29,6 +29,16 @@ const char* PNG::ResultToString(PNG::Result res)
         return "InvalidPixelBuffer";
     case Result::InvalidImageSize:
         return "InvalidImageSize";
+    case Result::DuplicatePalette:
+        return "DuplicatePalette";
+    case Result::IllegalPaletteChunk:
+        return "IllegalPaletteChunk";
+    case Result::InvalidPaletteSize:
+        return "InvalidPaletteSize";
+    case Result::PaletteNotFound:
+        return "PaletteNotFound";
+    case Result::InvalidPaletteIndex:
+        return "InvalidPaletteIndex";
     case Result::UpdatingClosedStreamError:
         return "UpdatingClosedStreamError";
     /* TODO: Custom ZLib implementation

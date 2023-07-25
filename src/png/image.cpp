@@ -94,10 +94,8 @@ void PNG::Image::SetSize(size_t width, size_t height)
     m_Pixels = new Color[width * height];
 }
 
-PNG::Result PNG::Image::LoadRawPixels(size_t colorType, size_t bitDepth, std::vector<uint8_t>& in)
+PNG::Result PNG::Image::LoadRawPixels(size_t colorType, size_t bitDepth, std::vector<Color>& palette, std::vector<uint8_t>& in)
 {
-    PNG_ASSERT(colorType != ColorType::PALETTE, "Palette color type not supported.");
-
     size_t samples = ColorType::GetSamples(colorType);
     if (samples == 0)
         return Result::InvalidColorType;
@@ -122,6 +120,7 @@ PNG::Result PNG::Image::LoadRawPixels(size_t colorType, size_t bitDepth, std::ve
     size_t pixelI = 0;
     for (size_t i = 0; i < in.size(); i += pixelSize) {
         for (size_t j = 0; j < samples; j++) {
+            rawColor[j] = 0;
             for (size_t k = 0; k < sampleSize; k++) {
                 rawColor[j] <<= sampleSize * 8;
                 rawColor[j] |= in[i+j*sampleSize+k];
@@ -145,6 +144,15 @@ PNG::Result PNG::Image::LoadRawPixels(size_t colorType, size_t bitDepth, std::ve
             color.B = (rawColor[2] & MAX_SAMPLE_VALUE) / (float)MAX_SAMPLE_VALUE;
             color.A = 1.0f;
             break;
+        case ColorType::PALETTE: {
+            size_t paletteIndex = rawColor[0];
+            if (paletteIndex >= palette.size()) {
+                PNG_LDEBUGF("PNG::Image::LoadRawPixels palette index %ld is out of bounds (>= %ld).", paletteIndex, palette.size());
+                return Result::InvalidPaletteIndex;
+            }
+            color = palette[paletteIndex];
+            break;
+        }
         case ColorType::GRAYSCALE_ALPHA: {
             float gray = (rawColor[0] & MAX_SAMPLE_VALUE) / (float)MAX_SAMPLE_VALUE;
             color.R = gray;
@@ -159,7 +167,6 @@ PNG::Result PNG::Image::LoadRawPixels(size_t colorType, size_t bitDepth, std::ve
             color.B = (rawColor[2] & MAX_SAMPLE_VALUE) / (float)MAX_SAMPLE_VALUE;
             color.A = (rawColor[3] & MAX_SAMPLE_VALUE) / (float)MAX_SAMPLE_VALUE;
             break;
-        case ColorType::PALETTE:
         default:
             return Result::InvalidColorType;
         }
@@ -183,6 +190,10 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
     PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
     PNG_RETURN_IF_NOT_OK(IHDRChunk::Parse, chunk, ihdr);
 
+    PNG_LDEBUGF("PNG::Image::Read Reading image %dx%d (bd=%d,ct=%d,cm=%d,fm=%d,im=%d).",
+        ihdr.Width, ihdr.Height, ihdr.BitDepth, ihdr.ColorType,
+        ihdr.CompressionMethod, ihdr.FilterMethod, ihdr.InterlaceMethod);
+
     if (ihdr.Width == 0 || ihdr.Height == 0)
         return Result::InvalidImageSize;
 
@@ -192,22 +203,47 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
     if (!ColorType::IsValidBitDepth(ihdr.ColorType, ihdr.BitDepth))
         return Result::InvalidBitDepth;
 
+    std::vector<Color> palette;
+
     // Vector holding all IDATs (Deflated Image Data)
-    
     DynamicByteStream idat;
+    size_t idats = 0;
+
     do {
         PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
         bool isAux = ChunkType::IsAncillary(chunk.Type);
 
         switch (chunk.Type) {
+        case ChunkType::PLTE:
+            if (idats > 0 || ihdr.ColorType == ColorType::GRAYSCALE ||
+                ihdr.ColorType == ColorType::GRAYSCALE_ALPHA
+            ) {
+                return Result::IllegalPaletteChunk;
+            } else if (palette.size() > 0) {
+                return Result::DuplicatePalette;
+            } else if (ihdr.ColorType == ColorType::PALETTE &&
+                (chunk.Length / 3) >= (size_t)(1 << ihdr.BitDepth)
+            ) {
+                return Result::InvalidPaletteSize;
+            }
+
+            for (size_t i = 0; i < chunk.Length; i += 3) {
+                palette.emplace_back(chunk.Data[i]/255.0f,
+                    chunk.Data[i+1]/255.0f,
+                    chunk.Data[i+2]/255.0f);
+            }
+            break;
         case ChunkType::IDAT:
-            idat.WriteBuffer(chunk.Data, chunk.Length);
-            idat.Flush();
+            // TODO: Check if last chunk was IDAT
+            if (ihdr.ColorType == ColorType::PALETTE && palette.size() == 0)
+                return Result::PaletteNotFound;
+
+            PNG_RETURN_IF_NOT_OK(idat.WriteBuffer, chunk.Data, chunk.Length);
+            PNG_RETURN_IF_NOT_OK(idat.Flush);
         case ChunkType::IEND:
             break;
         default:
-            // PLTE Chunk from the libpng standard isn't implemented yet.
-            PNG_ASSERTF(isAux, "Mandatory chunk (%d) isn't supported yet.", chunk.Type);
+            PNG_ASSERTF(isAux, "Mandatory chunk (0x%x) isn't supported yet.", chunk.Type);
         }
     } while (chunk.Type != ChunkType::IEND);
     idat.Close();
@@ -220,14 +256,14 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
 
     std::vector<uint8_t> rawPixels;
 
-    size_t pixelSize = ColorType::GetBytesPerPixel(ihdr.ColorType, ihdr.BitDepth);
-    PNG_ASSERT(pixelSize > 0, "Pixel size is 0.");
+    size_t samples = ColorType::GetSamples(ihdr.ColorType);
+    PNG_ASSERT(samples > 0, "Sample count is 0.");
 
     PNG_RETURN_IF_NOT_OK(DeinterlacePixels, ihdr.InterlaceMethod, ihdr.FilterMethod,
-        ihdr.Width, ihdr.Height, pixelSize, intPixels, rawPixels);
+        ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, intPixels, rawPixels);
 
     out.SetSize(ihdr.Width, ihdr.Height);
-    PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, rawPixels);
+    PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, palette, rawPixels);
 
     return Result::OK;
 }
@@ -245,6 +281,10 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
     PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
     PNG_RETURN_IF_NOT_OK(IHDRChunk::Parse, chunk, ihdr);
 
+    PNG_LDEBUGF("PNG::Image::Read Reading image %dx%d (bd=%d,ct=%d,cm=%d,fm=%d,im=%d).",
+        ihdr.Width, ihdr.Height, ihdr.BitDepth, ihdr.ColorType,
+        ihdr.CompressionMethod, ihdr.FilterMethod, ihdr.InterlaceMethod);
+
     if (ihdr.Width == 0 || ihdr.Height == 0)
         return Result::InvalidImageSize;
 
@@ -254,12 +294,12 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
     if (!ColorType::IsValidBitDepth(ihdr.ColorType, ihdr.BitDepth))
         return Result::InvalidBitDepth;
 
-    // Vector holding all IDATs (Deflated Image Data)
-    
+    std::vector<Color> palette;
+
     DynamicByteStream idat;
     Result readerTRes;
 
-    std::thread readerT([&in, &idat, &readerTRes]() {
+    std::thread readerT([&in, &ihdr, &palette, &idat, &readerTRes]() {
         size_t idats = 0;
 
         Chunk chunk;
@@ -267,19 +307,52 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
             readerTRes = Chunk::Read(in, chunk);
             if (readerTRes != Result::OK)
                 return;
-
+            
             bool isAux = ChunkType::IsAncillary(chunk.Type);
 
             switch (chunk.Type) {
+            case ChunkType::PLTE:
+                if (idats > 0 || ihdr.ColorType == ColorType::GRAYSCALE ||
+                    ihdr.ColorType == ColorType::GRAYSCALE_ALPHA
+                ) {
+                    readerTRes = Result::IllegalPaletteChunk;
+                    return;
+                } else if (palette.size() > 0) {
+                    readerTRes = Result::DuplicatePalette;
+                    return;
+                } else if (ihdr.ColorType == ColorType::PALETTE &&
+                    (chunk.Length / 3) >= (size_t)(1 << ihdr.BitDepth)
+                ) {
+                    readerTRes = Result::InvalidPaletteSize;
+                    return;
+                }
+
+                for (size_t i = 0; i < chunk.Length; i += 3) {
+                    palette.emplace_back(chunk.Data[i]/255.0f,
+                        chunk.Data[i+1]/255.0f,
+                        chunk.Data[i+2]/255.0f);
+                }
+                break;
             case ChunkType::IDAT:
+                // TODO: Check if last chunk was IDAT
+                if (ihdr.ColorType == ColorType::PALETTE && palette.size() == 0) {
+                    readerTRes = Result::PaletteNotFound;
+                    return;
+                }
+
+                readerTRes = idat.WriteBuffer(chunk.Data, chunk.Length);
+                if (readerTRes != Result::OK)
+                    return;
+
+                readerTRes = idat.Flush();
+                if (readerTRes != Result::OK)
+                    return;
+
                 idats++;
-                idat.WriteBuffer(chunk.Data, chunk.Length);
-                idat.Flush();
             case ChunkType::IEND:
                 break;
             default:
-                // PLTE Chunk from the libpng standard isn't implemented yet.
-                PNG_ASSERTF(isAux, "Mandatory chunk (%d) isn't supported yet.", chunk.Type);
+                PNG_ASSERTF(isAux, "Mandatory chunk (0x%x) isn't supported yet.", chunk.Type);
             }
         } while (chunk.Type != ChunkType::IEND);
         // While reading IDATs, PNG::DecompressData can read the buffer in another thread
@@ -298,11 +371,11 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
 
     Result deinterlacerTRes;
     std::thread deinterlacerT([&ihdr, &intPixels, &rawPixels, &deinterlacerTRes]() {
-        size_t pixelSize = ColorType::GetBytesPerPixel(ihdr.ColorType, ihdr.BitDepth);
-        PNG_ASSERT(pixelSize > 0, "Pixel size is 0.");
+        size_t samples = ColorType::GetSamples(ihdr.ColorType);
+        PNG_ASSERT(samples > 0, "Sample count is 0.");
 
         deinterlacerTRes = DeinterlacePixels(ihdr.InterlaceMethod, ihdr.FilterMethod,
-            ihdr.Width, ihdr.Height, pixelSize, intPixels, rawPixels);
+            ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, intPixels, rawPixels);
     });
 
     PNG_LDEBUG("Joining IDAT Reader.");
@@ -323,7 +396,7 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
 
     PNG_LDEBUG("Loading raw pixels into Image.");
     out.SetSize(ihdr.Width, ihdr.Height);
-    PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, rawPixels);
+    PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, palette, rawPixels);
 
     return Result::OK;
 }

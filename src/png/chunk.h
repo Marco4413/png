@@ -15,6 +15,7 @@ namespace PNG
         inline bool IsConforming(uint32_t chunkType) { return (chunkType & 0x00002000) != 0; }
         inline bool IsSafeToCopy(uint32_t chunkType) { return (chunkType & 0x00000020) != 0; }
 
+        const uint32_t PLTE = 0x504c5445;
         const uint32_t IHDR = 0x49484452;
         const uint32_t IDAT = 0x49444154;
         const uint32_t IEND = 0x49454e44;

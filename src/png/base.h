@@ -91,6 +91,11 @@ namespace PNG
         InvalidBitDepth,
         InvalidPixelBuffer,
         InvalidImageSize,
+        DuplicatePalette,
+        IllegalPaletteChunk,
+        InvalidPaletteSize,
+        PaletteNotFound,
+        InvalidPaletteIndex,
         UpdatingClosedStreamError,
         ZLib_NotAvailable,
         ZLib_DataError,
@@ -108,13 +113,23 @@ namespace PNG
     {
     private:
         T* m_Data;
-        const size_t m_StartOffset;
-        const size_t m_Stride;
+        size_t m_StartOffset;
+        size_t m_Stride;
     public:
         ArrayView2D(T* data, size_t startOffset, size_t stride)
             : m_Data(data), m_StartOffset(startOffset), m_Stride(stride) { }
         ArrayView2D(const T* data, size_t startOffset, size_t stride)
             : ArrayView2D((T*)data, startOffset, stride) { }
+
+        ArrayView2D(const ArrayView2D<T>& other) { *this = other; }
+        
+        ArrayView2D<T>& operator=(const ArrayView2D<T>& other)
+        {
+            m_Data = other.m_Data;
+            m_StartOffset = other.m_StartOffset;
+            m_Stride = other.m_Stride;
+            return *this;
+        }
 
         T* operator[](size_t y)
         {
@@ -126,6 +141,8 @@ namespace PNG
             return &m_Data[m_StartOffset + m_Stride * y];
         }
     };
+
+    inline size_t BitsToBytes(size_t bits) { return bits & 7 ? (bits >> 3) + 1 : bits >> 3; }
 } 
 
 #endif // _PNG_BASE_H
