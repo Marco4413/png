@@ -18,8 +18,15 @@ PNG::Result PNG::Adam7::DeinterlacePixels(uint8_t filterMethod, size_t width, si
 
     std::vector<uint8_t> passImage;
     for (size_t pass = 0; pass < 7; pass++) {
-        size_t passWidth  = width  / COL_OFFSET[pass];
+        size_t passWidth = width / COL_OFFSET[pass];
+        size_t lastRowSize = width % COL_OFFSET[pass];
+        if (lastRowSize != 0 && lastRowSize > STARTING_COL[pass])
+            passWidth++;
+
         size_t passHeight = height / ROW_OFFSET[pass];
+        size_t lastColSize = height % ROW_OFFSET[pass];
+        if (lastColSize != 0 && lastColSize > STARTING_ROW[pass])
+            passHeight++;
 
         PNG_RETURN_IF_NOT_OK(UnfilterPixels, filterMethod, passWidth, passHeight, bitDepth*samples, in, passImage);
 
