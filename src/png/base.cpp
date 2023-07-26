@@ -11,6 +11,8 @@ const char* PNG::ResultToString(PNG::Result res)
         return "UnexpectedEOF";
     case Result::UnexpectedChunkType:
         return "UnexpectedChunkType";
+    case Result::UnknownNecessaryChunk:
+        return "UnknownNecessaryChunk";
     case Result::UnknownCompressionMethod:
         return "UnknownCompressionMethod";
     case Result::UnknownFilterMethod:

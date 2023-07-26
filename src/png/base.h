@@ -82,6 +82,7 @@ namespace PNG
         Unknown,
         UnexpectedEOF,
         UnexpectedChunkType,
+        UnknownNecessaryChunk,
         UnknownCompressionMethod,
         UnknownFilterMethod,
         UnknownFilterType,

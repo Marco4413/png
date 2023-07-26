@@ -246,7 +246,9 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
         case ChunkType::IEND:
             break;
         default:
-            PNG_ASSERTF(isAux, "Mandatory chunk (0x%x) isn't supported yet.", chunk.Type);
+            PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk %.*s (0x%x).", (int)sizeof(chunk.Type), (char*)&chunk.Type, chunk.Type);
+            if (!isAux)
+                return Result::UnknownNecessaryChunk;
         }
     } while (chunk.Type != ChunkType::IEND);
     idat.Close();
@@ -360,7 +362,11 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
             case ChunkType::IEND:
                 break;
             default:
-                PNG_ASSERTF(isAux, "Mandatory chunk (0x%x) isn't supported yet.", chunk.Type);
+                PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk %.*s (0x%x).", (int)sizeof(chunk.Type), (char*)&chunk.Type, chunk.Type);
+                if (!isAux) {
+                    readerTRes = Result::UnknownNecessaryChunk;
+                    return;
+                }
             }
         } while (chunk.Type != ChunkType::IEND);
         // While reading IDATs, PNG::DecompressData can read the buffer in another thread
