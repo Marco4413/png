@@ -67,7 +67,7 @@ PNG::Result PNG::ZLib::DecompressData(IStream& in, OStream& out)
 
         if (zcode == Z_BUF_ERROR || inf.avail_in == 0) {
             if (inf.avail_in != 0)
-                memcpy(inBuffer, inf.next_in, inf.avail_in);
+                memmove(inBuffer, inf.next_in, inf.avail_in);
 
             pres = in.ReadBuffer(inBuffer+inf.avail_in, IN_CAPACITY-inf.avail_in, &inSize);
             if (pres != Result::OK) {
