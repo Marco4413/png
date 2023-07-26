@@ -77,7 +77,7 @@ PNG::Result PNG::AdaptiveFiltering::UnfilterPixels(size_t width, size_t height, 
             }
             break;
         default:
-            PNG_LDEBUGF("Unknown filter type %d in image %ldx%ld (pb=%ld,bpp=%ld,sl=%ld,y=%ld).",
+            PNG_LDEBUGF("PNG::AdaptiveFiltering::UnfilterPixels Unknown filter type %d in image %ldx%ld (pb=%ld,bpp=%ld,sl=%ld,y=%ld).",
                 filterType, width, height, pixelBits, bpp, packedRowSize+1, y);
             return Result::UnknownFilterType;
         }
