@@ -3,9 +3,9 @@
 const PNG::CRC PNG::CRC::m_Instance = PNG::CRC();
 
 // Code taken from http://www.libpng.org/pub/png/spec/1.2/PNG-CRCAppendix.html
-uint32_t PNG::CRC::Update(uint32_t crc, void* _buf, size_t bufLen)
+uint32_t PNG::CRC::Update(uint32_t crc, const void* _buf, size_t bufLen)
 {
-    uint8_t* buf = (uint8_t*)_buf;
+    const uint8_t* buf = (uint8_t*)_buf;
     for (size_t n = 0; n < bufLen; n++)
         crc = m_Instance.m_Table[(crc ^ buf[n]) & 0xff] ^ (crc >> 8);
     return crc;
@@ -20,7 +20,7 @@ uint32_t PNG::CRC::Update(uint32_t crc, uint32_t value)
 }
 
 // Code taken from http://www.libpng.org/pub/png/spec/1.2/PNG-CRCAppendix.html
-uint32_t PNG::CRC::Calculate(void* buf, size_t bufLen)
+uint32_t PNG::CRC::Calculate(const void* buf, size_t bufLen)
 {
     return ~Update(~0, buf, bufLen);
 }
