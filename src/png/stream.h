@@ -25,6 +25,9 @@ namespace PNG
          */
         virtual Result ReadBuffer(void* buf, size_t bufLen, size_t* bytesRead = nullptr) = 0;
 
+        /// @see PNG::IStream::ReadBuffer()
+        virtual Result ReadVector(std::vector<uint8_t>& vec, size_t* bytesRead = nullptr) { return ReadBuffer(vec.data(), vec.size(), bytesRead); }
+
         template<typename T>
         Result ReadNumber(T& out)
         {
@@ -54,6 +57,9 @@ namespace PNG
          * @return Whether the write operation succeded or not.  
          */
         virtual Result WriteBuffer(const void* buf, size_t bufLen) = 0;
+        
+        /// @see PNG::OStream::WriteBuffer()
+        virtual Result WriteVector(const std::vector<uint8_t>& vec) { return WriteBuffer(vec.data(), vec.size()); }
 
         /**
          * @brief Tells the stream that what was previously written to it can be moved from the staging buffer into the underlying buffer.
