@@ -17,6 +17,20 @@ PNG::Result PNG::IStreamWrapper::ReadBuffer(void* buf, size_t bufLen, size_t* by
     return Result::OK;
 }
 
+PNG::Result PNG::OStreamWrapper::WriteBuffer(const void* buf, size_t bufLen)
+{
+    if (!m_Stream.write((char*)buf, bufLen))
+        return Result::Unknown;
+    return Result::OK;
+}
+
+PNG::Result PNG::OStreamWrapper::Flush()
+{
+    if (!m_Stream.flush())
+        return Result::Unknown;
+    return Result::OK;
+}
+
 PNG::Result PNG::ByteStream::ReadBuffer(void* buf, size_t bufLen, size_t* bytesRead)
 {
     std::lock_guard<std::mutex> lock(m_Mutex);
@@ -75,7 +89,7 @@ PNG::Result PNG::DynamicByteStream::ReadBuffer(void* buf, size_t bufLen, size_t*
     return PNG::Result::OK;
 }
 
-PNG::Result PNG::DynamicByteStream::WriteBuffer(void* buf, size_t bufLen)
+PNG::Result PNG::DynamicByteStream::WriteBuffer(const void* buf, size_t bufLen)
 {
     if (m_Closed)
         return Result::UpdatingClosedStreamError;
