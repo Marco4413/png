@@ -225,12 +225,12 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
             } else if (palette.size() > 0) {
                 return Result::DuplicatePalette;
             } else if (ihdr.ColorType == ColorType::PALETTE &&
-                (chunk.Length / 3) > (size_t)(1 << ihdr.BitDepth)
+                (chunk.Length() / 3) > (size_t)(1 << ihdr.BitDepth)
             ) {
                 return Result::InvalidPaletteSize;
             }
 
-            for (size_t i = 0; i < chunk.Length; i += 3) {
+            for (size_t i = 0; i < chunk.Length(); i += 3) {
                 palette.emplace_back(chunk.Data[i]/255.0f,
                     chunk.Data[i+1]/255.0f,
                     chunk.Data[i+2]/255.0f);
@@ -241,7 +241,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
             if (ihdr.ColorType == ColorType::PALETTE && palette.size() == 0)
                 return Result::PaletteNotFound;
 
-            PNG_RETURN_IF_NOT_OK(idat.WriteBuffer, chunk.Data, chunk.Length);
+            PNG_RETURN_IF_NOT_OK(idat.WriteVector, chunk.Data);
             PNG_RETURN_IF_NOT_OK(idat.Flush);
         case ChunkType::IEND:
             break;
@@ -331,13 +331,13 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
                     readerTRes = Result::DuplicatePalette;
                     return;
                 } else if (ihdr.ColorType == ColorType::PALETTE &&
-                    (chunk.Length / 3) > (size_t)(1 << ihdr.BitDepth)
+                    (chunk.Length() / 3) > (size_t)(1 << ihdr.BitDepth)
                 ) {
                     readerTRes = Result::InvalidPaletteSize;
                     return;
                 }
 
-                for (size_t i = 0; i < chunk.Length; i += 3) {
+                for (size_t i = 0; i < chunk.Length(); i += 3) {
                     palette.emplace_back(chunk.Data[i]/255.0f,
                         chunk.Data[i+1]/255.0f,
                         chunk.Data[i+2]/255.0f);
@@ -350,7 +350,7 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
                     return;
                 }
 
-                readerTRes = idat.WriteBuffer(chunk.Data, chunk.Length);
+                readerTRes = idat.WriteVector(chunk.Data);
                 if (readerTRes != Result::OK)
                     return;
 

@@ -5,21 +5,16 @@
 uint32_t PNG::Chunk::CalculateCRC() const
 {
     uint32_t c = CRC::Update(~0, Type);
-    return ~CRC::Update(c, Data, Length);
+    return ~CRC::Update(c, Data.data(), Data.size());
 }
 
 PNG::Result PNG::Chunk::Read(IStream& in, PNG::Chunk& chunk)
 {
-    if (chunk.Data) {
-        delete[] chunk.Data;
-        chunk.Data = nullptr;
-    }
-    chunk.Length = 0;
-
-    PNG_RETURN_IF_NOT_OK(in.ReadU32, chunk.Length);
+    uint32_t len;
+    PNG_RETURN_IF_NOT_OK(in.ReadU32, len);
     PNG_RETURN_IF_NOT_OK(in.ReadU32, chunk.Type);
-    chunk.Data = new uint8_t[chunk.Length];
-    PNG_RETURN_IF_NOT_OK(in.ReadBuffer, chunk.Data, chunk.Length);
+    chunk.Data.resize(len);
+    PNG_RETURN_IF_NOT_OK(in.ReadBuffer, chunk.Data.data(), len);
     PNG_RETURN_IF_NOT_OK(in.ReadU32, chunk.CRC);
 
     return Result::OK;
@@ -30,7 +25,7 @@ PNG::Result PNG::IHDRChunk::Parse(const PNG::Chunk& chunk, PNG::IHDRChunk& ihdr)
     if (chunk.Type != ChunkType::IHDR)
         return Result::UnexpectedChunkType;
     
-    ByteStream inIHDR(chunk.Data, chunk.Length);
+    ByteStream inIHDR(chunk.Data);
 
     PNG_RETURN_IF_NOT_OK(inIHDR.ReadU32, ihdr.Width);
     PNG_RETURN_IF_NOT_OK(inIHDR.ReadU32, ihdr.Height);

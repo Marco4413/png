@@ -24,13 +24,12 @@ namespace PNG
     class Chunk
     {
     public:
-        uint32_t Length = 0;
+        uint32_t Length() const { return Data.size(); }
         uint32_t Type;
-        uint8_t* Data = nullptr;
+        std::vector<uint8_t> Data;
         uint32_t CRC;
     public:
         Chunk() = default;
-        virtual ~Chunk() { delete[] Data; }
 
         uint32_t CalculateCRC() const;
 
