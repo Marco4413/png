@@ -4,6 +4,7 @@
 #define _PNG_IMAGE_H
 
 #include "png/base.h"
+#include "png/compression.h"
 #include "png/stream.h"
 
 namespace PNG
@@ -77,6 +78,8 @@ namespace PNG
         
         static Result Read(IStream& in, Image& out);
         static Result ReadMT(IStream& in, Image& out);
+
+        Result Write(OStream& out, CompressionLevel clevel = CompressionLevel::Default) const;
     };
 }
 

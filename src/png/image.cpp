@@ -1,7 +1,7 @@
 #include "png/image.h"
 
 #include "png/chunk.h"
-#include "png/compression.h"
+#include "png/filter.h"
 #include "png/interlace.h"
 
 #include <thread>
@@ -411,6 +411,63 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
     PNG_LDEBUG("Loading raw pixels into Image.");
     out.SetSize(ihdr.Width, ihdr.Height);
     PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, palette, rawPixels);
+
+    return Result::OK;
+}
+
+PNG::Result PNG::Image::Write(OStream& out, CompressionLevel clevel) const
+{
+    PNG_RETURN_IF_NOT_OK(out.WriteBuffer, PNG_SIGNATURE, PNG_SIGNATURE_LEN);
+    PNG_RETURN_IF_NOT_OK(out.Flush);
+
+    IHDRChunk ihdr;
+    ihdr.Width = m_Width;
+    ihdr.Height = m_Height;
+    ihdr.BitDepth = 8;
+    ihdr.ColorType = ColorType::RGBA;
+    ihdr.CompressionMethod = CompressionMethod::ZLIB;
+    ihdr.FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
+    ihdr.InterlaceMethod = InterlaceMethod::NONE;
+
+    Chunk chunk;
+    PNG_RETURN_IF_NOT_OK(ihdr.Write, chunk);
+    PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+    PNG_RETURN_IF_NOT_OK(out.Flush);
+
+    std::vector<uint8_t> img;
+    img.resize(m_Width * m_Height * 4 + m_Height);
+    ArrayView2D<uint8_t> imgView(img.data(), 1, m_Width * 4 + 1);
+
+    for (size_t y = 0; y < m_Height; y++) {
+        imgView[y][-1] = 0;
+        for (size_t x = 0; x < m_Width; x++) {
+            auto px = (*this)[y][x];
+            imgView[y][x*4  ] = px.R * 255;
+            imgView[y][x*4+1] = px.G * 255;
+            imgView[y][x*4+2] = px.B * 255;
+            imgView[y][x*4+3] = px.A * 255;
+        }
+    }
+
+    {
+        ByteStream inf(img);
+        DynamicByteStream def;
+        PNG_RETURN_IF_NOT_OK(CompressData, ihdr.CompressionMethod, inf, def, clevel);
+        
+        chunk.Type = ChunkType::IDAT;
+        chunk.Data = std::move(def.GetBuffer());
+        chunk.CRC = chunk.CalculateCRC();
+    }
+
+    PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+    PNG_RETURN_IF_NOT_OK(out.Flush);
+
+    chunk.Type = ChunkType::IEND;
+    chunk.Data.resize(0);
+    chunk.CRC = chunk.CalculateCRC();
+
+    PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+    PNG_RETURN_IF_NOT_OK(out.Flush);
 
     return Result::OK;
 }
