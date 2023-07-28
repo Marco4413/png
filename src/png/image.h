@@ -73,7 +73,7 @@ namespace PNG
         inline const Color* operator[](size_t y) const { return &m_Pixels[y * m_Width]; }
         inline Color* operator[](size_t y) { return &m_Pixels[y * m_Width]; }
         
-        Result LoadRawPixels(size_t samples, size_t bitDepth, std::vector<Color>& palette, std::vector<uint8_t>& in);
+        Result LoadRawPixels(uint8_t colorType, size_t bitDepth, std::vector<Color>& palette, std::vector<uint8_t>& in);
         
         static Result Read(IStream& in, Image& out);
         static Result ReadMT(IStream& in, Image& out);

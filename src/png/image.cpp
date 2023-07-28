@@ -94,7 +94,7 @@ void PNG::Image::SetSize(size_t width, size_t height)
     m_Pixels = new Color[width * height];
 }
 
-PNG::Result PNG::Image::LoadRawPixels(size_t colorType, size_t bitDepth, std::vector<Color>& palette, std::vector<uint8_t>& in)
+PNG::Result PNG::Image::LoadRawPixels(uint8_t colorType, size_t bitDepth, std::vector<Color>& palette, std::vector<uint8_t>& in)
 {
     size_t samples = ColorType::GetSamples(colorType);
     if (samples == 0)
