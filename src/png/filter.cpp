@@ -1,6 +1,7 @@
 #include "png/filter.h"
 
 #include <iostream>
+#include <memory>
 
 PNG::Result PNG::AdaptiveFiltering::UnfilterPixels(size_t width, size_t height, size_t pixelBits, IStream& in, std::vector<uint8_t>& _out)
 {
@@ -99,6 +100,53 @@ PNG::Result PNG::AdaptiveFiltering::UnfilterPixels(size_t width, size_t height, 
     }
 
     return Result::OK;
+}
+
+PNG::Result PNG::AdaptiveFiltering::FilterPixels(size_t width, size_t height, size_t pixelBits, IStream& in, OStream& out)
+{
+    size_t bpp = BitsToBytes(pixelBits);
+    size_t rowSize = width*bpp;
+    auto line = std::make_unique<uint8_t[]>(rowSize);
+
+    size_t packedRowSize = BitsToBytes(width*pixelBits);
+    auto filLine = std::make_unique<uint8_t[]>(packedRowSize);
+
+    for (size_t y = 0; y < height; y++) {
+        PNG_RETURN_IF_NOT_OK(in.ReadBuffer, line.get(), rowSize);
+        PNG_RETURN_IF_NOT_OK(out.WriteU8, 0);
+
+        // If pixels should be packed, pack them
+        if (pixelBits < 8) {
+            memset(filLine.get(), 0, packedRowSize);
+            // This assert should never fail
+            PNG_ASSERT(bpp == 1, "Packing a pixel which spans more than 1 byte.");
+            const size_t pixelMask = (1 << pixelBits) - 1;
+            for (size_t x = 0; x < width; x++) {
+                uint8_t sample = line[x] & pixelMask;
+                size_t pixelStart = pixelBits * x;
+                size_t pIndex = pixelStart >> 3; // pixelStart / 8
+                size_t pShift = 8 - (pixelStart & 7) - pixelBits; // pixelStart % 8
+                filLine[pIndex] |= sample << pShift;
+            }
+            PNG_RETURN_IF_NOT_OK(out.WriteBuffer, filLine.get(), packedRowSize);
+        } else {
+            PNG_RETURN_IF_NOT_OK(out.WriteBuffer, line.get(), rowSize);
+        }
+
+        PNG_RETURN_IF_NOT_OK(out.Flush);
+    }
+
+    return Result::OK;
+}
+
+PNG::Result PNG::FilterPixels(uint8_t method, size_t width, size_t height, size_t pixelBits, IStream& in, OStream& out)
+{
+    switch (method) {
+    case FilterMethod::ADAPTIVE_FILTERING:
+        return AdaptiveFiltering::FilterPixels(width, height, pixelBits, in, out);
+    default:
+        return Result::UnknownFilterMethod;
+    }
 }
 
 PNG::Result PNG::UnfilterPixels(uint8_t method, size_t width, size_t height, size_t pixelBits, IStream& in, std::vector<uint8_t>& out)

@@ -24,9 +24,11 @@ namespace PNG
             const uint8_t PAETH = 4;
         }
 
+        Result FilterPixels(size_t width, size_t height, size_t pixelBits, IStream& in, OStream& out);
         Result UnfilterPixels(size_t width, size_t height, size_t pixelBits, IStream& in, std::vector<uint8_t>& out);
     }
 
+    Result FilterPixels(uint8_t method, size_t width, size_t height, size_t pixelBits, IStream& in, OStream& out);
     Result UnfilterPixels(uint8_t method, size_t width, size_t height, size_t pixelBits, IStream& in, std::vector<uint8_t>& out);
 }
 

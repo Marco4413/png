@@ -177,6 +177,67 @@ PNG::Result PNG::Image::LoadRawPixels(uint8_t colorType, size_t bitDepth, std::v
     return Result::OK;
 }
 
+PNG::Result PNG::Image::WriteRawPixels(uint8_t colorType, size_t bitDepth, OStream& out) const
+{
+    if (colorType == ColorType::PALETTE)
+        return Result::UnsupportedColorType;
+
+    size_t samples = ColorType::GetSamples(colorType);
+    if (samples == 0)
+        return Result::InvalidColorType;
+    PNG_ASSERT(samples <= ColorType::MAX_SAMPLES, "WHY?");
+
+    if (!ColorType::IsValidBitDepth(colorType, bitDepth))
+        return Result::InvalidBitDepth;
+    
+    size_t sampleSize = ColorType::GetBytesPerSample(bitDepth);
+    PNG_ASSERT(sampleSize <= sizeof(size_t), "HOW?");
+    
+    const size_t MAX_SAMPLE_VALUE = (1 << bitDepth) - 1;
+    size_t rawColor[ColorType::MAX_SAMPLES]{0};
+
+    for (size_t y = 0; y < m_Height; y++) {
+        for (size_t x = 0; x < m_Width; x++) {
+            const Color& color = (*this)[y][x];
+            switch (colorType)
+            {
+            case ColorType::GRAYSCALE:
+                rawColor[0] = (color.R + color.G + color.B) / 3.0f * MAX_SAMPLE_VALUE;
+                break;
+            case ColorType::RGB:
+                rawColor[0] = color.R * MAX_SAMPLE_VALUE;
+                rawColor[1] = color.G * MAX_SAMPLE_VALUE;
+                rawColor[2] = color.B * MAX_SAMPLE_VALUE;
+                break;
+            case ColorType::GRAYSCALE_ALPHA:
+                rawColor[0] = (color.R + color.G + color.B) / 3.0f * MAX_SAMPLE_VALUE;
+                rawColor[1] = color.A * MAX_SAMPLE_VALUE;
+                break;
+            case ColorType::RGBA:
+                rawColor[0] = color.R * MAX_SAMPLE_VALUE;
+                rawColor[1] = color.G * MAX_SAMPLE_VALUE;
+                rawColor[2] = color.B * MAX_SAMPLE_VALUE;
+                rawColor[3] = color.A * MAX_SAMPLE_VALUE;
+                break;
+            case ColorType::PALETTE:
+                PNG_UNREACHABLE("PNG::Image::WriteRawPixels Early return failed for Palette color type.");
+            default:
+                return Result::InvalidColorType;
+            }
+
+            for (size_t j = 0; j < samples; j++) {
+                size_t sample = rawColor[j];
+                for (size_t k = 0; k < sampleSize; k++)
+                    PNG_RETURN_IF_NOT_OK(out.WriteU8, sample >> ((sampleSize-k-1) * 8));
+            }
+        }
+        // Flush on each scanline
+        PNG_RETURN_IF_NOT_OK(out.Flush);
+    }
+
+    return Result::OK;
+}
+
 PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
 {
     uint8_t sig[PNG_SIGNATURE_LEN];
@@ -415,16 +476,23 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
     return Result::OK;
 }
 
-PNG::Result PNG::Image::Write(OStream& out, CompressionLevel clevel) const
+PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, CompressionLevel clevel) const
 {
+    size_t samples = ColorType::GetSamples(colorType);
+    if (samples == 0)
+        return Result::InvalidColorType;
+
+    if (!ColorType::IsValidBitDepth(colorType, bitDepth))
+        return Result::InvalidBitDepth;
+
     PNG_RETURN_IF_NOT_OK(out.WriteBuffer, PNG_SIGNATURE, PNG_SIGNATURE_LEN);
     PNG_RETURN_IF_NOT_OK(out.Flush);
 
     IHDRChunk ihdr;
     ihdr.Width = m_Width;
     ihdr.Height = m_Height;
-    ihdr.BitDepth = 8;
-    ihdr.ColorType = ColorType::RGBA;
+    ihdr.BitDepth = bitDepth;
+    ihdr.ColorType = colorType;
     ihdr.CompressionMethod = CompressionMethod::ZLIB;
     ihdr.FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
     ihdr.InterlaceMethod = InterlaceMethod::NONE;
@@ -434,8 +502,30 @@ PNG::Result PNG::Image::Write(OStream& out, CompressionLevel clevel) const
     PNG_RETURN_IF_NOT_OK(chunk.Write, out);
     PNG_RETURN_IF_NOT_OK(out.Flush);
 
-    std::vector<uint8_t> img;
-    img.resize(m_Width * m_Height * 4 + m_Height);
+    DynamicByteStream rawImage;
+    PNG_RETURN_IF_NOT_OK(WriteRawPixels, ihdr.ColorType, ihdr.BitDepth, rawImage);
+    PNG_RETURN_IF_NOT_OK(rawImage.Close);
+
+    DynamicByteStream inf;
+    PNG_RETURN_IF_NOT_OK(FilterPixels, ihdr.FilterMethod, ihdr.Width, ihdr.Height, ihdr.BitDepth*samples, rawImage, inf);
+    PNG_RETURN_IF_NOT_OK(inf.Close);
+
+    /*{
+        size_t sampleSize = ColorType::GetBytesPerSample(bitDepth);
+        size_t pixelSize = samples * sampleSize;
+        
+        std::vector<uint8_t> line;
+        line.resize(m_Width * pixelSize + 1);
+        for (size_t y = 0; y < m_Height; y++) {
+            line[0] = 0;
+            PNG_RETURN_IF_NOT_OK(rawImage.ReadBuffer, line.data()+1, line.size()-1);
+            PNG_RETURN_IF_NOT_OK(inf.WriteBuffer, line.data(), line.size());
+            PNG_RETURN_IF_NOT_OK(inf.Flush);
+        }
+    }*/
+
+
+    /*img.resize(m_Width * m_Height * 4 + m_Height);
     ArrayView2D<uint8_t> imgView(img.data(), 1, m_Width * 4 + 1);
 
     for (size_t y = 0; y < m_Height; y++) {
@@ -447,10 +537,9 @@ PNG::Result PNG::Image::Write(OStream& out, CompressionLevel clevel) const
             imgView[y][x*4+2] = px.B * 255;
             imgView[y][x*4+3] = px.A * 255;
         }
-    }
+    }*/
 
     {
-        ByteStream inf(img);
         DynamicByteStream def;
         PNG_RETURN_IF_NOT_OK(CompressData, ihdr.CompressionMethod, inf, def, clevel);
         
