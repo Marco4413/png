@@ -92,7 +92,7 @@ PNG::Result PNG::AdaptiveFiltering::UnfilterPixels(size_t width, size_t height, 
             for (size_t x = 0; x < width; x++) {
                 size_t pixelStart = pixelBits * x;
                 size_t pIndex = pixelStart >> 3; // pixelStart / 8
-                size_t pShift = 8 - (pixelStart & 7) + pixelBits; // pixelStart % 8
+                size_t pShift = 8 - (pixelStart & 7) - pixelBits; // pixelStart % 8
                 size_t byte = (unf[y][pIndex] >> pShift) & pixelMask;
                 out[y][x] = byte;
             }
