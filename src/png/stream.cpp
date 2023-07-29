@@ -106,6 +106,9 @@ PNG::Result PNG::DynamicByteStream::Flush()
     if (m_Closed)
         return Result::UpdatingClosedStreamError;
 
+    if (m_ICursor >= m_TrimSize)
+        TrimInputBuffer();
+
     std::lock_guard<std::mutex> iLock(m_IMutex);
     std::lock_guard<std::mutex> oLock(m_OMutex);
 
@@ -122,4 +125,15 @@ PNG::Result PNG::DynamicByteStream::Close()
     PNG_RETURN_IF_NOT_OK(Flush);
     m_Closed = true;
     return Result::OK;
+}
+
+void PNG::DynamicByteStream::TrimInputBuffer()
+{
+    if (m_ICursor == 0)
+        return;
+
+    std::lock_guard<std::mutex> lock(m_IMutex);
+    memmove(m_IBuffer.data(), m_IBuffer.data() + m_ICursor, m_IBuffer.size() - m_ICursor);
+    m_IBuffer.resize(m_IBuffer.size() - m_ICursor);
+    m_ICursor = 0;
 }
