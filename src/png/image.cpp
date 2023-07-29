@@ -513,14 +513,31 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, 
     {
         DynamicByteStream def;
         PNG_RETURN_IF_NOT_OK(CompressData, ihdr.CompressionMethod, inf, def, clevel);
-        
-        chunk.Type = ChunkType::IDAT;
-        chunk.Data = std::move(def.GetBuffer());
-        chunk.CRC = chunk.CalculateCRC();
-    }
+        PNG_RETURN_IF_NOT_OK(def.Close);
 
-    PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-    PNG_RETURN_IF_NOT_OK(out.Flush);
+        // Split into IDAT chunks of ~32KB
+        // This is four times the size GIMP uses (and I suppose the official libpng implementation)
+        // It does not really improve performance (it for sure makes it worse) but it is done to keep it the same as the MT version
+        const size_t BUF_CAP = 32768;
+        chunk.Type = ChunkType::IDAT;
+
+        while (true) {
+            chunk.Data.resize(BUF_CAP);
+
+            size_t bRead;
+            auto rres = def.ReadVector(chunk.Data, &bRead);
+            if (rres == Result::UnexpectedEOF || bRead == 0)
+                break;
+            else if (rres != Result::OK)
+                return rres;
+
+            chunk.Data.resize(bRead);
+            chunk.CRC = chunk.CalculateCRC();
+
+            PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+            PNG_RETURN_IF_NOT_OK(out.Flush);
+        }
+    }
 
     chunk.Type = ChunkType::IEND;
     chunk.Data.resize(0);
@@ -573,25 +590,43 @@ PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth
             ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, clevel, rawImage, inf);
     });
 
+    DynamicByteStream def;
     Result deflaterTRes;
-    std::thread deflaterT([&out, &ihdr, clevel, &inf, &deflaterTRes]() {
-        DynamicByteStream def;
+    std::thread deflaterT([&ihdr, clevel, &inf, &def, &deflaterTRes]() {
         deflaterTRes = CompressData(ihdr.CompressionMethod, inf, def, clevel);
-        if (deflaterTRes != Result::OK)
-            return;
+    });
 
+    Result idatWriterTRes = Result::OK;
+    std::thread idatWriterT([&out, &def, &idatWriterTRes]() {
+        // Split into IDAT chunks of ~32KB
+        // This is four times the size GIMP uses (and I suppose the official libpng implementation)
+        const size_t BUF_CAP = 32768;
         Chunk chunk;
         chunk.Type = ChunkType::IDAT;
-        chunk.Data = std::move(def.GetBuffer());
-        chunk.CRC = chunk.CalculateCRC();
 
-        deflaterTRes = chunk.Write(out);
-        if (deflaterTRes != Result::OK)
-            return;
+        while (true) {
+            chunk.Data.resize(BUF_CAP);
 
-        deflaterTRes = out.Flush();
-        if (deflaterTRes != Result::OK)
-            return;
+            size_t bRead;
+            auto rres = def.ReadVector(chunk.Data, &bRead);
+            if (rres == Result::UnexpectedEOF || bRead == 0)
+                break;
+            else if (rres != Result::OK) {
+                idatWriterTRes = rres;
+                return;
+            }
+
+            chunk.Data.resize(bRead);
+            chunk.CRC = chunk.CalculateCRC();
+
+            idatWriterTRes = chunk.Write(out);
+            if (idatWriterTRes != Result::OK)
+                return;
+
+            idatWriterTRes = out.Flush();
+            if (idatWriterTRes != Result::OK)
+                return;
+        }
     });
 
     rawReaderT.join();
@@ -599,6 +634,8 @@ PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth
     interlacerT.join();
     inf.Close();
     deflaterT.join();
+    def.Close();
+    idatWriterT.join();
 
     if (rawReaderTRes != Result::OK)
         return rawReaderTRes;
@@ -606,6 +643,8 @@ PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth
         return interlacerTRes;
     if (deflaterTRes != Result::OK)
         return deflaterTRes;
+    if (idatWriterTRes != Result::OK)
+        return idatWriterTRes;
 
     {
         Chunk chunk;
