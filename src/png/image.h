@@ -80,6 +80,8 @@ namespace PNG
 
         Result Write(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8,
             CompressionLevel clevel = CompressionLevel::Default, uint8_t interlaceMethod = InterlaceMethod::NONE) const;
+        Result WriteMT(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8,
+            CompressionLevel clevel = CompressionLevel::Default, uint8_t interlaceMethod = InterlaceMethod::NONE) const;
         
         static Result Read(IStream& in, Image& out);
         static Result ReadMT(IStream& in, Image& out);

@@ -531,3 +531,90 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, 
 
     return Result::OK;
 }
+
+PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth, CompressionLevel clevel, uint8_t interlaceMethod) const
+{
+    size_t samples = ColorType::GetSamples(colorType);
+    if (samples == 0)
+        return Result::InvalidColorType;
+
+    if (!ColorType::IsValidBitDepth(colorType, bitDepth))
+        return Result::InvalidBitDepth;
+
+    PNG_RETURN_IF_NOT_OK(out.WriteBuffer, PNG_SIGNATURE, PNG_SIGNATURE_LEN);
+    PNG_RETURN_IF_NOT_OK(out.Flush);
+
+    IHDRChunk ihdr;
+    ihdr.Width = m_Width;
+    ihdr.Height = m_Height;
+    ihdr.BitDepth = bitDepth;
+    ihdr.ColorType = colorType;
+    ihdr.CompressionMethod = CompressionMethod::ZLIB;
+    ihdr.FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
+    ihdr.InterlaceMethod = interlaceMethod;
+
+    {
+        Chunk chunk;
+        PNG_RETURN_IF_NOT_OK(ihdr.Write, chunk);
+        PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+        PNG_RETURN_IF_NOT_OK(out.Flush);
+    }
+
+    DynamicByteStream rawImage;
+    Result rawReaderTRes;
+    std::thread rawReaderT([this, &ihdr, &rawImage, &rawReaderTRes]() {
+        rawReaderTRes = WriteRawPixels(ihdr.ColorType, ihdr.BitDepth, rawImage);
+    });
+
+    DynamicByteStream inf;
+    Result interlacerTRes;
+    std::thread interlacerT([&ihdr, samples, clevel, &rawImage, &inf, &interlacerTRes]() {
+        interlacerTRes = InterlacePixels(ihdr.InterlaceMethod, ihdr.FilterMethod,
+            ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, clevel, rawImage, inf);
+    });
+
+    Result deflaterTRes;
+    std::thread deflaterT([&out, &ihdr, clevel, &inf, &deflaterTRes]() {
+        DynamicByteStream def;
+        deflaterTRes = CompressData(ihdr.CompressionMethod, inf, def, clevel);
+        if (deflaterTRes != Result::OK)
+            return;
+
+        Chunk chunk;
+        chunk.Type = ChunkType::IDAT;
+        chunk.Data = std::move(def.GetBuffer());
+        chunk.CRC = chunk.CalculateCRC();
+
+        deflaterTRes = chunk.Write(out);
+        if (deflaterTRes != Result::OK)
+            return;
+
+        deflaterTRes = out.Flush();
+        if (deflaterTRes != Result::OK)
+            return;
+    });
+
+    rawReaderT.join();
+    rawImage.Close();
+    interlacerT.join();
+    inf.Close();
+    deflaterT.join();
+
+    if (rawReaderTRes != Result::OK)
+        return rawReaderTRes;
+    if (interlacerTRes != Result::OK)
+        return interlacerTRes;
+    if (deflaterTRes != Result::OK)
+        return deflaterTRes;
+
+    {
+        Chunk chunk;
+        chunk.Type = ChunkType::IEND;
+        chunk.Data.resize(0);
+        chunk.CRC = chunk.CalculateCRC();
+        PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+        PNG_RETURN_IF_NOT_OK(out.Flush);
+    }
+
+    return Result::OK;
+}

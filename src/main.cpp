@@ -42,27 +42,34 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    std::ifstream file(filePath, std::ios::binary);
-    PNG::IStreamWrapper inFile(file);
-
     {
+        std::ifstream file(filePath, std::ios::binary);
+        PNG::IStreamWrapper inFile(file);
         PNG::Image img;
         ScopeTimer t("Single Threaded Image Reading");
         ASSERT_OK(PNG::Image::Read, inFile, img);
     }
 
-    file.seekg(0);
     PNG::Image img;
     {
+        std::ifstream file(filePath, std::ios::binary);
+        PNG::IStreamWrapper inFile(file);
         ScopeTimer t("Multi Threaded Image Reading");
         ASSERT_OK(PNG::Image::ReadMT, inFile, img);
     }
 
     {
-        std::ofstream oFile("out/out.png", std::ios::binary);
-        PNG::OStreamWrapper oStream(oFile);
+        std::ofstream file("out/out.png", std::ios::binary);
+        PNG::OStreamWrapper outStream(file);
         ScopeTimer t("Single Threaded Image Writing");
-        ASSERT_OK(img.Write, oStream, PNG::ColorType::RGBA, 8, PNG::CompressionLevel::BestSize, PNG::InterlaceMethod::ADAM7);
+        ASSERT_OK(img.Write, outStream, PNG::ColorType::RGBA, 8, PNG::CompressionLevel::NoCompression, PNG::InterlaceMethod::NONE);
+    }
+
+    {
+        std::ofstream file("out/out.png", std::ios::binary);
+        PNG::OStreamWrapper outStream(file);
+        ScopeTimer t("Multi Threaded Image Writing");
+        ASSERT_OK(img.WriteMT, outStream, PNG::ColorType::RGBA, 8, PNG::CompressionLevel::NoCompression, PNG::InterlaceMethod::NONE);
     }
 
     /*
