@@ -33,7 +33,8 @@ namespace PNG
 
         uint32_t CalculateCRC() const;
 
-        static Result Read(IStream& input, Chunk& chunk);
+        static Result Read(IStream& in, Chunk& chunk);
+        Result Write(OStream& out) const;
     };
 
     class IHDRChunk
@@ -48,6 +49,7 @@ namespace PNG
         uint8_t InterlaceMethod;
     
         static Result Parse(const Chunk& chunk, IHDRChunk& ihdr);
+        Result Write(Chunk& chunk) const;
     };
 }
 

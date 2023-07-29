@@ -20,6 +20,15 @@ PNG::Result PNG::Chunk::Read(IStream& in, PNG::Chunk& chunk)
     return Result::OK;
 }
 
+PNG::Result PNG::Chunk::Write(PNG::OStream& out) const
+{
+    PNG_RETURN_IF_NOT_OK(out.WriteU32, Length());
+    PNG_RETURN_IF_NOT_OK(out.WriteU32, Type);
+    PNG_RETURN_IF_NOT_OK(out.WriteVector, Data);
+    PNG_RETURN_IF_NOT_OK(out.WriteU32, CRC);
+    return Result::OK;
+}
+
 PNG::Result PNG::IHDRChunk::Parse(const PNG::Chunk& chunk, PNG::IHDRChunk& ihdr)
 {
     if (chunk.Type != ChunkType::IHDR)
@@ -35,5 +44,21 @@ PNG::Result PNG::IHDRChunk::Parse(const PNG::Chunk& chunk, PNG::IHDRChunk& ihdr)
     PNG_RETURN_IF_NOT_OK(inIHDR.ReadU8, ihdr.FilterMethod);
     PNG_RETURN_IF_NOT_OK(inIHDR.ReadU8, ihdr.InterlaceMethod);
 
+    return Result::OK;
+}
+
+PNG::Result PNG::IHDRChunk::Write(PNG::Chunk& chunk) const
+{
+    DynamicByteStream stream;
+    PNG_RETURN_IF_NOT_OK(stream.WriteU32, Width);
+    PNG_RETURN_IF_NOT_OK(stream.WriteU32, Height);
+    uint8_t conf[5]{BitDepth, ColorType, CompressionMethod, FilterMethod, InterlaceMethod};
+    PNG_RETURN_IF_NOT_OK(stream.WriteBuffer, conf, 5);
+    PNG_RETURN_IF_NOT_OK(stream.Flush);
+    PNG_RETURN_IF_NOT_OK(stream.Close);
+
+    chunk.Type = ChunkType::IHDR;
+    chunk.Data = std::move(stream.GetBuffer());
+    chunk.CRC = chunk.CalculateCRC();
     return Result::OK;
 }

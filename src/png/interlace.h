@@ -4,6 +4,7 @@
 #define _PNG_INTERLACE_H
 
 #include "png/base.h"
+#include "png/compression.h"
 #include "png/stream.h"
 
 namespace PNG
@@ -16,9 +17,15 @@ namespace PNG
 
     namespace Adam7
     {
+        Result InterlacePixels(uint8_t filterMethod, size_t width, size_t height,
+            size_t bitDepth, size_t samples, CompressionLevel clevel, IStream& in, OStream& out);
+
         Result DeinterlacePixels(uint8_t filterMethod, size_t width, size_t height,
             size_t bitDepth, size_t samples, IStream& in, std::vector<uint8_t>& out);
     }
+
+    Result InterlacePixels(uint8_t method, uint8_t filterMethod, size_t width, size_t height,
+        size_t bitDepth, size_t samples, CompressionLevel clevel, IStream& in, OStream& out);
 
     Result DeinterlacePixels(uint8_t method, uint8_t filterMethod, size_t width, size_t height,
         size_t bitDepth, size_t samples, IStream& in, std::vector<uint8_t>& out);

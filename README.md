@@ -33,7 +33,7 @@ $ ./build.sh
 
 1. ~~Splitting the project into multiple files~~
 2. ~~CRC implementation~~
-3. Writing images to streams
+3. ~~Writing images to streams~~
 4. ~~PLTE Chunk support~~
 5. Custom ZLib implementation (maybe)
 

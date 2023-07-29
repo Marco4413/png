@@ -15,23 +15,26 @@ namespace PNG
         const uint8_t ZLIB = 0;
     }
 
+    enum class CompressionLevel
+    {
+        Default,
+        NoCompression,
+        BestSpeed,
+        BestSize,
+    };
+
 #ifdef PNG_USE_ZLIB
     namespace ZLib
     {
-        /* TODO: Custom ZLib implementation
-        namespace CompressionLevel
-        {
-            const uint8_t Fastest = 0;
-            const uint8_t Fast = 1;
-            const uint8_t Default = 2;
-            const uint8_t Slowest = 3;
-        }*/
+        int GetLevel(CompressionLevel l);
 
         Result DecompressData(IStream& in, OStream& out);
+        Result CompressData(IStream& in, OStream& out, CompressionLevel level = CompressionLevel::Default);
     }
 #endif // PNG_USE_ZLIB
 
     Result DecompressData(uint8_t method, IStream& in, OStream& out);
+    Result CompressData(uint8_t method, IStream& in, OStream& out, CompressionLevel level = CompressionLevel::Default);
 }
 
 #endif // _PNG_COMPRESSION_H
