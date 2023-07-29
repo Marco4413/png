@@ -127,9 +127,6 @@ PNG::Result PNG::AdaptiveFiltering::FilterPixels(size_t width, size_t height, si
         PNG_UNREACHABLEF("PNG::AdaptiveFiltering::FilterPixels Missing case for CompressionLevel %d.", (int)clevel);
     }
 
-    PNG_LDEBUGF("Is Optimizing: %d", optimize);
-    PNG_LDEBUGF("Is Filter Fixed: %d", fixedFilter);
-
     size_t bpp = BitsToBytes(pixelBits);
     size_t rowSize = width*bpp;
 
