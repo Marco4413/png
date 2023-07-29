@@ -507,7 +507,7 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, 
     PNG_RETURN_IF_NOT_OK(rawImage.Close);
 
     DynamicByteStream inf;
-    PNG_RETURN_IF_NOT_OK(FilterPixels, ihdr.FilterMethod, ihdr.Width, ihdr.Height, ihdr.BitDepth*samples, rawImage, inf);
+    PNG_RETURN_IF_NOT_OK(FilterPixels, ihdr.FilterMethod, ihdr.Width, ihdr.Height, ihdr.BitDepth*samples, clevel, rawImage, inf);
     PNG_RETURN_IF_NOT_OK(inf.Close);
 
     /*{

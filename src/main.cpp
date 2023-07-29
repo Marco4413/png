@@ -62,7 +62,7 @@ int main(int argc, char** argv)
         std::ofstream oFile("out/out.png", std::ios::binary);
         PNG::OStreamWrapper oStream(oFile);
         ScopeTimer t("Single Threaded Image Writing");
-        ASSERT_OK(img.Write, oStream, PNG::ColorType::GRAYSCALE, 8, PNG::CompressionLevel::BestSize);
+        ASSERT_OK(img.Write, oStream, PNG::ColorType::RGBA, 8, PNG::CompressionLevel::BestSize);
     }
 
     /*
