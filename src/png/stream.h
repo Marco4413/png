@@ -144,8 +144,8 @@ namespace PNG
     class DynamicByteStream : public IOStream
     {
     public:
-        DynamicByteStream(std::chrono::milliseconds pollInterval)
-            : m_IPollInterval(pollInterval) { }
+        DynamicByteStream(std::chrono::milliseconds pollInterval, size_t trimSize = 4194304 /* 4MB */)
+            : m_IPollInterval(pollInterval), m_TrimSize(trimSize) { }
 
         DynamicByteStream()
             : DynamicByteStream(std::chrono::milliseconds(1)) { }
@@ -170,6 +170,8 @@ namespace PNG
             return m_IBuffer.size() - m_ICursor;
         }
 
+        void TrimInputBuffer();
+
         std::vector<uint8_t> m_OBuffer;
         std::mutex m_OMutex;
 
@@ -179,6 +181,7 @@ namespace PNG
         std::vector<uint8_t> m_IBuffer;
         std::mutex m_IMutex;
 
+        size_t m_TrimSize;
         bool m_Closed = false;
     };
 }
