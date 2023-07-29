@@ -5,6 +5,7 @@
 
 #include "png/base.h"
 #include "png/compression.h"
+#include "png/interlace.h"
 #include "png/stream.h"
 
 namespace PNG
@@ -74,10 +75,11 @@ namespace PNG
         inline const Color* operator[](size_t y) const { return &m_Pixels[y * m_Width]; }
         inline Color* operator[](size_t y) { return &m_Pixels[y * m_Width]; }
         
+        Result WriteRawPixels(uint8_t colorType, size_t bitDepth, OStream& out) const;
         Result LoadRawPixels(uint8_t colorType, size_t bitDepth, std::vector<Color>& palette, std::vector<uint8_t>& in);
 
-        Result WriteRawPixels(uint8_t colorType, size_t bitDepth, OStream& out) const;
-        Result Write(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8, CompressionLevel clevel = CompressionLevel::Default) const;
+        Result Write(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8,
+            CompressionLevel clevel = CompressionLevel::Default, uint8_t interlaceMethod = InterlaceMethod::NONE) const;
         
         static Result Read(IStream& in, Image& out);
         static Result ReadMT(IStream& in, Image& out);

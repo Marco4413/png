@@ -2,7 +2,6 @@
 
 #include "png/chunk.h"
 #include "png/filter.h"
-#include "png/interlace.h"
 
 #include <thread>
 
@@ -476,7 +475,7 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
     return Result::OK;
 }
 
-PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, CompressionLevel clevel) const
+PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, CompressionLevel clevel, uint8_t interlaceMethod) const
 {
     size_t samples = ColorType::GetSamples(colorType);
     if (samples == 0)
@@ -495,7 +494,7 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, 
     ihdr.ColorType = colorType;
     ihdr.CompressionMethod = CompressionMethod::ZLIB;
     ihdr.FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
-    ihdr.InterlaceMethod = InterlaceMethod::NONE;
+    ihdr.InterlaceMethod = interlaceMethod;
 
     Chunk chunk;
     PNG_RETURN_IF_NOT_OK(ihdr.Write, chunk);
@@ -507,37 +506,9 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, 
     PNG_RETURN_IF_NOT_OK(rawImage.Close);
 
     DynamicByteStream inf;
-    PNG_RETURN_IF_NOT_OK(FilterPixels, ihdr.FilterMethod, ihdr.Width, ihdr.Height, ihdr.BitDepth*samples, clevel, rawImage, inf);
+    PNG_RETURN_IF_NOT_OK(InterlacePixels, ihdr.InterlaceMethod, ihdr.FilterMethod,
+        ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, clevel, rawImage, inf);
     PNG_RETURN_IF_NOT_OK(inf.Close);
-
-    /*{
-        size_t sampleSize = ColorType::GetBytesPerSample(bitDepth);
-        size_t pixelSize = samples * sampleSize;
-        
-        std::vector<uint8_t> line;
-        line.resize(m_Width * pixelSize + 1);
-        for (size_t y = 0; y < m_Height; y++) {
-            line[0] = 0;
-            PNG_RETURN_IF_NOT_OK(rawImage.ReadBuffer, line.data()+1, line.size()-1);
-            PNG_RETURN_IF_NOT_OK(inf.WriteBuffer, line.data(), line.size());
-            PNG_RETURN_IF_NOT_OK(inf.Flush);
-        }
-    }*/
-
-
-    /*img.resize(m_Width * m_Height * 4 + m_Height);
-    ArrayView2D<uint8_t> imgView(img.data(), 1, m_Width * 4 + 1);
-
-    for (size_t y = 0; y < m_Height; y++) {
-        imgView[y][-1] = 0;
-        for (size_t x = 0; x < m_Width; x++) {
-            auto px = (*this)[y][x];
-            imgView[y][x*4  ] = px.R * 255;
-            imgView[y][x*4+1] = px.G * 255;
-            imgView[y][x*4+2] = px.B * 255;
-            imgView[y][x*4+3] = px.A * 255;
-        }
-    }*/
 
     {
         DynamicByteStream def;
