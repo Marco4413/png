@@ -66,7 +66,7 @@ int main(int argc, char** argv)
     }
 
     {
-        std::ofstream file("out/out.png", std::ios::binary);
+        std::ofstream file("out/out-mt.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
         ScopeTimer t("Multi Threaded Image Writing");
         ASSERT_OK(img.WriteMT, outStream, PNG::ColorType::RGBA, 8, PNG::CompressionLevel::NoCompression, PNG::InterlaceMethod::NONE);
