@@ -60,6 +60,79 @@ size_t PNG::ColorType::GetBytesPerPixel(uint8_t colorType, uint8_t bitDepth)
     return samples * GetBytesPerSample(bitDepth);
 }
 
+PNG::Color& PNG::Color::operator+=(const Color& other)
+{
+    R += other.R;
+    G += other.G;
+    B += other.B;
+    A += other.A;
+    return *this;
+}
+
+PNG::Color PNG::Color::operator+(const Color& other) const
+{
+    return std::move(Color(
+        R + other.R,
+        G + other.G,
+        B + other.B,
+        A + other.A
+    ));
+}
+
+PNG::Color& PNG::Color::operator-=(const Color& other)
+{
+    R -= other.R;
+    G -= other.G;
+    B -= other.B;
+    A -= other.A;
+    return *this;
+}
+
+PNG::Color PNG::Color::operator-(const Color& other) const
+{
+    return std::move(Color(
+        R - other.R,
+        G - other.G,
+        B - other.B,
+        A - other.A
+    ));
+}
+
+PNG::Color& PNG::Color::operator*=(float n)
+{
+    R *= n;
+    G *= n;
+    B *= n;
+    A *= n;
+    return *this;
+}
+
+PNG::Color PNG::Color::operator*(float n) const
+{
+    return std::move(PNG::Color(
+        R * n, G * n, B * n, A * n
+    ));
+}
+
+PNG::Color& PNG::Color::operator/=(float n)
+{
+    R /= n;
+    G /= n;
+    B /= n;
+    A /= n;
+    return *this;
+}
+
+PNG::Color PNG::Color::operator/(float n) const
+{
+    return std::move(Color(
+        R / n,
+        G / n,
+        B / n,
+        A / n
+    ));
+}
+
 PNG::Image::Image(const Image& other)
     : PNG::Image(other.m_Width, other.m_Height)
 {
@@ -93,8 +166,11 @@ void PNG::Image::SetSize(size_t width, size_t height)
     m_Pixels = new Color[width * height];
 }
 
-PNG::Result PNG::Image::LoadRawPixels(uint8_t colorType, size_t bitDepth, std::vector<Color>& palette, std::vector<uint8_t>& in)
+PNG::Result PNG::Image::LoadRawPixels(uint8_t colorType, size_t bitDepth, const std::vector<Color>* palette, const std::vector<uint8_t>& in)
 {
+    if (colorType == ColorType::PALETTE && !palette)
+        return Result::PaletteNotFound;
+
     size_t samples = ColorType::GetSamples(colorType);
     if (samples == 0)
         return Result::InvalidColorType;
@@ -145,11 +221,11 @@ PNG::Result PNG::Image::LoadRawPixels(uint8_t colorType, size_t bitDepth, std::v
             break;
         case ColorType::PALETTE: {
             size_t paletteIndex = rawColor[0];
-            if (paletteIndex >= palette.size()) {
-                PNG_LDEBUGF("PNG::Image::LoadRawPixels palette index %ld is out of bounds (>= %ld).", paletteIndex, palette.size());
+            if (paletteIndex >= palette->size()) {
+                PNG_LDEBUGF("PNG::Image::LoadRawPixels palette index %ld is out of bounds (>= %ld).", paletteIndex, palette->size());
                 return Result::InvalidPaletteIndex;
             }
-            color = palette[paletteIndex];
+            color = (*palette)[paletteIndex];
             break;
         }
         case ColorType::GRAYSCALE_ALPHA: {
@@ -231,6 +307,83 @@ PNG::Result PNG::Image::WriteRawPixels(uint8_t colorType, size_t bitDepth, OStre
             }
         }
         // Flush on each scanline
+        PNG_RETURN_IF_NOT_OK(out.Flush);
+    }
+
+    return Result::OK;
+}
+
+PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette, size_t bitDepth, OStream& out) const
+{
+    if (!ColorType::IsValidBitDepth(ColorType::PALETTE, bitDepth))
+        return Result::InvalidBitDepth;
+    if (palette.size() == 0 || palette.size() > (size_t)(1 << bitDepth))
+        return Result::InvalidPaletteSize;
+    PNG_ASSERTF(bitDepth <= 8, "PNG::Image::WriteDitheredRawPixels Illegal bit depth %ld.", bitDepth);
+
+    // https://en.wikipedia.org/wiki/Floyd–Steinberg_dithering
+    // Creating a copy of the image for error diffusion
+    std::vector<Color> _img(m_Width * m_Height);
+    memcpy(_img.data(), m_Pixels, _img.size() * sizeof(Color));
+    ArrayView2D<Color> img(_img.data(), 0, m_Width);
+
+    std::vector<uint8_t> line(m_Width);
+    for (size_t y = 0; y < m_Height; y++) {
+        for (size_t x = 0; x < m_Width; x++) {
+            const Color& color = img[y][x];
+
+            // Find closest palette color
+            // Best Squared Distance
+            float bestDSq = std::numeric_limits<float>::max();
+            size_t bestPaletteI = 0;
+
+            for (size_t i = 0; i < palette.size(); i++) {
+                const Color& pColor = palette[i];
+                Color dColor = color - pColor;
+                float dSq = dColor.R * dColor.R + dColor.G * dColor.G + dColor.B * dColor.B;
+                if (dSq < bestDSq) {
+                    bestDSq = dSq;
+                    bestPaletteI = i;
+                }
+            }
+
+            line[x] = bestPaletteI;
+
+            // Apply error diffusion
+            const Color& newColor = palette[bestPaletteI];
+            Color quantError = color - newColor;
+
+#if 1 // Floyd Steinberg dithering
+            if (x + 1 < m_Width)
+                img[y][x+1] += quantError * (7.0f / 16);
+
+            if (y + 1 < m_Height) {
+                if (x > 1)
+                    img[y+1][x-1] += quantError * (3.0f / 16);
+                img[y+1][x] += quantError * (5.0f / 16);
+                if (x + 1 < m_Width)
+                    img[y+1][x+1] += quantError * (1.0f / 16);
+            }
+#else // Atkinson dithering
+            if (x + 1 < m_Width)
+                img[y][x+1] += quantError * (1.0f / 8);
+            if (x + 2 < m_Width)
+                img[y][x+2] += quantError * (1.0f / 8);
+
+            if (y + 1 < m_Height) {
+                if (x > 1)
+                    img[y+1][x-1] += quantError * (1.0f / 8);
+                img[y+1][x] += quantError * (1.0f / 8);
+                if (x + 1 < m_Width)
+                    img[y+1][x+1] += quantError * (1.0f / 8);
+            }
+
+            if (y + 2 < m_Height)
+                img[y+2][x] += quantError * (1.0f / 8);
+#endif
+        }
+
+        PNG_RETURN_IF_NOT_OK(out.WriteVector, line);
         PNG_RETURN_IF_NOT_OK(out.Flush);
     }
 
@@ -328,7 +481,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
         ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, intPixels, rawPixels);
 
     out.SetSize(ihdr.Width, ihdr.Height);
-    PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, palette, rawPixels);
+    PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, &palette, rawPixels);
 
     return Result::OK;
 }
@@ -470,13 +623,17 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
 
     PNG_LDEBUG("Loading raw pixels into Image.");
     out.SetSize(ihdr.Width, ihdr.Height);
-    PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, palette, rawPixels);
+    PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, &palette, rawPixels);
 
     return Result::OK;
 }
 
-PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, CompressionLevel clevel, uint8_t interlaceMethod) const
+PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth,
+    const std::vector<Color>* palette, CompressionLevel clevel, uint8_t interlaceMethod) const
 {
+    if (colorType == ColorType::PALETTE && !palette)
+        return Result::PaletteNotFound;
+
     size_t samples = ColorType::GetSamples(colorType);
     if (samples == 0)
         return Result::InvalidColorType;
@@ -502,7 +659,23 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, 
     PNG_RETURN_IF_NOT_OK(out.Flush);
 
     DynamicByteStream rawImage;
-    PNG_RETURN_IF_NOT_OK(WriteRawPixels, ihdr.ColorType, ihdr.BitDepth, rawImage);
+    if (ihdr.ColorType == ColorType::PALETTE) {
+        PNG_ASSERT(palette, "PNG::Image::Write Early palette check failed.");
+        PNG_RETURN_IF_NOT_OK(WriteDitheredRawPixels, *palette, ihdr.BitDepth, rawImage);
+
+        chunk.Type = ChunkType::PLTE;
+        chunk.Data.resize(palette->size() * 3);
+        for (size_t i = 0; i < palette->size(); i++) {
+            const Color& color = (*palette)[i];
+            chunk.Data[i*3  ] = color.R * 255;
+            chunk.Data[i*3+1] = color.G * 255;
+            chunk.Data[i*3+2] = color.B * 255;
+        }
+        chunk.CRC = chunk.CalculateCRC();
+
+        PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+        PNG_RETURN_IF_NOT_OK(out.Flush);
+    } else PNG_RETURN_IF_NOT_OK(WriteRawPixels, ihdr.ColorType, ihdr.BitDepth, rawImage);
     PNG_RETURN_IF_NOT_OK(rawImage.Close);
 
     DynamicByteStream inf;
@@ -549,8 +722,12 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, 
     return Result::OK;
 }
 
-PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth, CompressionLevel clevel, uint8_t interlaceMethod) const
+PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth,
+    const std::vector<Color>* palette, CompressionLevel clevel, uint8_t interlaceMethod) const
 {
+    if (colorType == ColorType::PALETTE && !palette)
+        return Result::PaletteNotFound;
+
     size_t samples = ColorType::GetSamples(colorType);
     if (samples == 0)
         return Result::InvalidColorType;
@@ -575,12 +752,31 @@ PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth
         PNG_RETURN_IF_NOT_OK(ihdr.Write, chunk);
         PNG_RETURN_IF_NOT_OK(chunk.Write, out);
         PNG_RETURN_IF_NOT_OK(out.Flush);
+
+        if (ihdr.ColorType == ColorType::PALETTE) {
+            PNG_ASSERT(palette, "PNG::Image::Write Early palette check failed.");
+            chunk.Type = ChunkType::PLTE;
+            chunk.Data.resize(palette->size() * 3);
+            for (size_t i = 0; i < palette->size(); i++) {
+                const Color& color = (*palette)[i];
+                chunk.Data[i*3  ] = color.R * 255;
+                chunk.Data[i*3+1] = color.G * 255;
+                chunk.Data[i*3+2] = color.B * 255;
+            }
+            chunk.CRC = chunk.CalculateCRC();
+
+            PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+            PNG_RETURN_IF_NOT_OK(out.Flush);
+        }
     }
 
     DynamicByteStream rawImage;
     Result rawReaderTRes;
-    std::thread rawReaderT([this, &ihdr, &rawImage, &rawReaderTRes]() {
-        rawReaderTRes = WriteRawPixels(ihdr.ColorType, ihdr.BitDepth, rawImage);
+    std::thread rawReaderT([this, palette, &ihdr, &rawImage, &rawReaderTRes]() {
+        if (ihdr.ColorType == ColorType::PALETTE) {
+            PNG_ASSERT(palette, "PNG::Image::Write Early palette check failed.");
+            rawReaderTRes = WriteDitheredRawPixels(*palette, ihdr.BitDepth, rawImage);
+        } else rawReaderTRes = WriteRawPixels(ihdr.ColorType, ihdr.BitDepth, rawImage);
     });
 
     DynamicByteStream inf;

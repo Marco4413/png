@@ -44,7 +44,78 @@ namespace PNG
 
         Color()
             : Color(0.0f) { }
+        
+        Color& operator+=(const Color& other);
+        Color operator+(const Color& other) const;
+
+        Color& operator-=(const Color& other);
+        Color operator-(const Color& other) const;
+
+        Color& operator*=(float n);
+        Color operator*(float n) const;
+        friend Color operator*(float n, const Color& c) { return c * n; };
+
+        Color& operator/=(float n);
+        Color operator/(float n) const;
     };
+
+    namespace Palettes
+    {
+        // Not using std::array because all functions accept std::vector
+
+        // https://en.wikipedia.org/wiki/Web_colors#Web-safe_colors
+        const size_t WEB_SAFE_BIT_DEPTH = 8;
+        const std::vector<Color> WEB_SAFE {
+            Color(0.0, 0.0, 0.0), Color(0.2, 0.0, 0.0), Color(0.4, 0.0, 0.0), Color(0.6, 0.0, 0.0), Color(0.8, 0.0, 0.0), Color(1.0, 0.0, 0.0),
+            Color(0.0, 0.0, 0.2), Color(0.2, 0.0, 0.2), Color(0.4, 0.0, 0.2), Color(0.6, 0.0, 0.2), Color(0.8, 0.0, 0.2), Color(1.0, 0.0, 0.2),
+            Color(0.0, 0.0, 0.4), Color(0.2, 0.0, 0.4), Color(0.4, 0.0, 0.4), Color(0.6, 0.0, 0.4), Color(0.8, 0.0, 0.4), Color(1.0, 0.0, 0.4),
+            Color(0.0, 0.0, 0.6), Color(0.2, 0.0, 0.6), Color(0.4, 0.0, 0.6), Color(0.6, 0.0, 0.6), Color(0.8, 0.0, 0.6), Color(1.0, 0.0, 0.6),
+            Color(0.0, 0.0, 0.8), Color(0.2, 0.0, 0.8), Color(0.4, 0.0, 0.8), Color(0.6, 0.0, 0.8), Color(0.8, 0.0, 0.8), Color(1.0, 0.0, 0.8),
+            Color(0.0, 0.0, 1.0), Color(0.2, 0.0, 1.0), Color(0.4, 0.0, 1.0), Color(0.6, 0.0, 1.0), Color(0.8, 0.0, 1.0), Color(1.0, 0.0, 1.0),
+            Color(0.0, 0.2, 0.0), Color(0.2, 0.2, 0.0), Color(0.4, 0.2, 0.0), Color(0.6, 0.2, 0.0), Color(0.8, 0.2, 0.0), Color(1.0, 0.2, 0.0),
+            Color(0.0, 0.2, 0.2), Color(0.2, 0.2, 0.2), Color(0.4, 0.2, 0.2), Color(0.6, 0.2, 0.2), Color(0.8, 0.2, 0.2), Color(1.0, 0.2, 0.2),
+            Color(0.0, 0.2, 0.4), Color(0.2, 0.2, 0.4), Color(0.4, 0.2, 0.4), Color(0.6, 0.2, 0.4), Color(0.8, 0.2, 0.4), Color(1.0, 0.2, 0.4),
+            Color(0.0, 0.2, 0.6), Color(0.2, 0.2, 0.6), Color(0.4, 0.2, 0.6), Color(0.6, 0.2, 0.6), Color(0.8, 0.2, 0.6), Color(1.0, 0.2, 0.6),
+            Color(0.0, 0.2, 0.8), Color(0.2, 0.2, 0.8), Color(0.4, 0.2, 0.8), Color(0.6, 0.2, 0.8), Color(0.8, 0.2, 0.8), Color(1.0, 0.2, 0.8),
+            Color(0.0, 0.2, 1.0), Color(0.2, 0.2, 1.0), Color(0.4, 0.2, 1.0), Color(0.6, 0.2, 1.0), Color(0.8, 0.2, 1.0), Color(1.0, 0.2, 1.0),
+            Color(0.0, 0.4, 0.0), Color(0.2, 0.4, 0.0), Color(0.4, 0.4, 0.0), Color(0.6, 0.4, 0.0), Color(0.8, 0.4, 0.0), Color(1.0, 0.4, 0.0),
+            Color(0.0, 0.4, 0.2), Color(0.2, 0.4, 0.2), Color(0.4, 0.4, 0.2), Color(0.6, 0.4, 0.2), Color(0.8, 0.4, 0.2), Color(1.0, 0.4, 0.2),
+            Color(0.0, 0.4, 0.4), Color(0.2, 0.4, 0.4), Color(0.4, 0.4, 0.4), Color(0.6, 0.4, 0.4), Color(0.8, 0.4, 0.4), Color(1.0, 0.4, 0.4),
+            Color(0.0, 0.4, 0.6), Color(0.2, 0.4, 0.6), Color(0.4, 0.4, 0.6), Color(0.6, 0.4, 0.6), Color(0.8, 0.4, 0.6), Color(1.0, 0.4, 0.6),
+            Color(0.0, 0.4, 0.8), Color(0.2, 0.4, 0.8), Color(0.4, 0.4, 0.8), Color(0.6, 0.4, 0.8), Color(0.8, 0.4, 0.8), Color(1.0, 0.4, 0.8),
+            Color(0.0, 0.4, 1.0), Color(0.2, 0.4, 1.0), Color(0.4, 0.4, 1.0), Color(0.6, 0.4, 1.0), Color(0.8, 0.4, 1.0), Color(1.0, 0.4, 1.0),
+            Color(0.0, 0.6, 0.0), Color(0.2, 0.6, 0.0), Color(0.4, 0.6, 0.0), Color(0.6, 0.6, 0.0), Color(0.8, 0.6, 0.0), Color(1.0, 0.6, 0.0),
+            Color(0.0, 0.6, 0.2), Color(0.2, 0.6, 0.2), Color(0.4, 0.6, 0.2), Color(0.6, 0.6, 0.2), Color(0.8, 0.6, 0.2), Color(1.0, 0.6, 0.2),
+            Color(0.0, 0.6, 0.4), Color(0.2, 0.6, 0.4), Color(0.4, 0.6, 0.4), Color(0.6, 0.6, 0.4), Color(0.8, 0.6, 0.4), Color(1.0, 0.6, 0.4),
+            Color(0.0, 0.6, 0.6), Color(0.2, 0.6, 0.6), Color(0.4, 0.6, 0.6), Color(0.6, 0.6, 0.6), Color(0.8, 0.6, 0.6), Color(1.0, 0.6, 0.6),
+            Color(0.0, 0.6, 0.8), Color(0.2, 0.6, 0.8), Color(0.4, 0.6, 0.8), Color(0.6, 0.6, 0.8), Color(0.8, 0.6, 0.8), Color(1.0, 0.6, 0.8),
+            Color(0.0, 0.6, 1.0), Color(0.2, 0.6, 1.0), Color(0.4, 0.6, 1.0), Color(0.6, 0.6, 1.0), Color(0.8, 0.6, 1.0), Color(1.0, 0.6, 1.0),
+            Color(0.0, 0.8, 0.0), Color(0.2, 0.8, 0.0), Color(0.4, 0.8, 0.0), Color(0.6, 0.8, 0.0), Color(0.8, 0.8, 0.0), Color(1.0, 0.8, 0.0),
+            Color(0.0, 0.8, 0.2), Color(0.2, 0.8, 0.2), Color(0.4, 0.8, 0.2), Color(0.6, 0.8, 0.2), Color(0.8, 0.8, 0.2), Color(1.0, 0.8, 0.2),
+            Color(0.0, 0.8, 0.4), Color(0.2, 0.8, 0.4), Color(0.4, 0.8, 0.4), Color(0.6, 0.8, 0.4), Color(0.8, 0.8, 0.4), Color(1.0, 0.8, 0.4),
+            Color(0.0, 0.8, 0.6), Color(0.2, 0.8, 0.6), Color(0.4, 0.8, 0.6), Color(0.6, 0.8, 0.6), Color(0.8, 0.8, 0.6), Color(1.0, 0.8, 0.6),
+            Color(0.0, 0.8, 0.8), Color(0.2, 0.8, 0.8), Color(0.4, 0.8, 0.8), Color(0.6, 0.8, 0.8), Color(0.8, 0.8, 0.8), Color(1.0, 0.8, 0.8),
+            Color(0.0, 0.8, 1.0), Color(0.2, 0.8, 1.0), Color(0.4, 0.8, 1.0), Color(0.6, 0.8, 1.0), Color(0.8, 0.8, 1.0), Color(1.0, 0.8, 1.0),
+            Color(0.0, 1.0, 0.0), Color(0.2, 1.0, 0.0), Color(0.4, 1.0, 0.0), Color(0.6, 1.0, 0.0), Color(0.8, 1.0, 0.0), Color(1.0, 1.0, 0.0),
+            Color(0.0, 1.0, 0.2), Color(0.2, 1.0, 0.2), Color(0.4, 1.0, 0.2), Color(0.6, 1.0, 0.2), Color(0.8, 1.0, 0.2), Color(1.0, 1.0, 0.2),
+            Color(0.0, 1.0, 0.4), Color(0.2, 1.0, 0.4), Color(0.4, 1.0, 0.4), Color(0.6, 1.0, 0.4), Color(0.8, 1.0, 0.4), Color(1.0, 1.0, 0.4),
+            Color(0.0, 1.0, 0.6), Color(0.2, 1.0, 0.6), Color(0.4, 1.0, 0.6), Color(0.6, 1.0, 0.6), Color(0.8, 1.0, 0.6), Color(1.0, 1.0, 0.6),
+            Color(0.0, 1.0, 0.8), Color(0.2, 1.0, 0.8), Color(0.4, 1.0, 0.8), Color(0.6, 1.0, 0.8), Color(0.8, 1.0, 0.8), Color(1.0, 1.0, 0.8),
+            Color(0.0, 1.0, 1.0), Color(0.2, 1.0, 1.0), Color(0.4, 1.0, 1.0), Color(0.6, 1.0, 1.0), Color(0.8, 1.0, 1.0), Color(1.0, 1.0, 1.0),
+        };
+
+        const size_t WEB_SAFEST_BIT_DEPTH = 8;
+        const std::vector<Color> WEB_SAFEST {
+            Color(0.0, 0.0, 0.0), Color(1.0, 0.0, 0.0),
+            Color(0.0, 0.0, 0.2), Color(1.0, 0.0, 0.2),
+            Color(0.0, 0.0, 1.0), Color(1.0, 0.0, 1.0),
+            Color(0.0, 1.0, 0.0), Color(0.4, 1.0, 0.0), Color(1.0, 1.0, 0.0),
+            Color(0.2, 1.0, 0.2), Color(0.4, 1.0, 0.2), Color(1.0, 1.0, 0.2),
+            Color(0.0, 1.0, 0.4), Color(0.2, 1.0, 0.4), Color(0.8, 1.0, 0.4), Color(1.0, 1.0, 0.4),
+            Color(0.0, 1.0, 0.8), Color(0.2, 1.0, 0.8),
+            Color(0.0, 1.0, 1.0), Color(0.2, 1.0, 1.0), Color(0.4, 1.0, 1.0), Color(1.0, 1.0, 1.0),
+        };
+    }
 
     class Image
     {
@@ -76,11 +147,12 @@ namespace PNG
         inline Color* operator[](size_t y) { return &m_Pixels[y * m_Width]; }
         
         Result WriteRawPixels(uint8_t colorType, size_t bitDepth, OStream& out) const;
-        Result LoadRawPixels(uint8_t colorType, size_t bitDepth, std::vector<Color>& palette, std::vector<uint8_t>& in);
+        Result WriteDitheredRawPixels(const std::vector<Color>& palette, size_t bitDepth, OStream& out) const;
+        Result LoadRawPixels(uint8_t colorType, size_t bitDepth, const std::vector<Color>* palette, const std::vector<uint8_t>& in);
 
-        Result Write(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8,
+        Result Write(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8, const std::vector<Color>* palette = nullptr,
             CompressionLevel clevel = CompressionLevel::Default, uint8_t interlaceMethod = InterlaceMethod::NONE) const;
-        Result WriteMT(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8,
+        Result WriteMT(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8, const std::vector<Color>* palette = nullptr,
             CompressionLevel clevel = CompressionLevel::Default, uint8_t interlaceMethod = InterlaceMethod::NONE) const;
         
         static Result Read(IStream& in, Image& out);

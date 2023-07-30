@@ -62,14 +62,16 @@ int main(int argc, char** argv)
         std::ofstream file("out/out.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
         ScopeTimer t("Single Threaded Image Writing");
-        ASSERT_OK(img.Write, outStream, PNG::ColorType::RGBA, 8, PNG::CompressionLevel::NoCompression, PNG::InterlaceMethod::NONE);
+        ASSERT_OK(img.Write, outStream, PNG::ColorType::PALETTE, PNG::Palettes::WEB_SAFEST_BIT_DEPTH, &PNG::Palettes::WEB_SAFEST,
+            PNG::CompressionLevel::BestSize, PNG::InterlaceMethod::NONE);
     }
 
     {
         std::ofstream file("out/out-mt.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
         ScopeTimer t("Multi Threaded Image Writing");
-        ASSERT_OK(img.WriteMT, outStream, PNG::ColorType::RGBA, 8, PNG::CompressionLevel::NoCompression, PNG::InterlaceMethod::NONE);
+        ASSERT_OK(img.WriteMT, outStream, PNG::ColorType::PALETTE, PNG::Palettes::WEB_SAFE_BIT_DEPTH, &PNG::Palettes::WEB_SAFE,
+            PNG::CompressionLevel::BestSize, PNG::InterlaceMethod::NONE);
     }
 
     /*
