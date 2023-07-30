@@ -4,10 +4,17 @@
 
 PNG::Result PNG::IStreamWrapper::ReadBuffer(void* buf, size_t bufLen, size_t* bytesRead)
 {
-    if (bytesRead)
-        *bytesRead = m_Stream.readsome((char*)buf, bufLen);
-    else m_Stream.read((char*)buf, bufLen);
-
+    if (bytesRead) {
+        auto bRead = m_Stream.readsome((char*)buf, bufLen);
+        if (bRead <= 0) {
+            *bytesRead = 0;
+            return Result::EndOfFile;
+        }
+        *bytesRead = bRead;
+        return Result::OK;
+    }
+    
+    m_Stream.read((char*)buf, bufLen);
     if (!m_Stream) {
         if (m_Stream.eof())
             return Result::UnexpectedEOF;
@@ -36,6 +43,11 @@ PNG::Result PNG::ByteStream::ReadBuffer(void* buf, size_t bufLen, size_t* bytesR
     std::lock_guard<std::mutex> lock(m_Mutex);
 
     size_t avail = m_BufferLen - m_ReadCursor;
+    if (avail == 0 && bytesRead) {
+        *bytesRead = 0;
+        return Result::EndOfFile;
+    }
+
     if (avail < bufLen) {
         memcpy(buf, m_Buffer + m_ReadCursor, avail);
         m_ReadCursor = m_BufferLen;
@@ -61,7 +73,7 @@ PNG::Result PNG::DynamicByteStream::ReadBuffer(void* buf, size_t bufLen, size_t*
         while (avail == 0) {
             // If the Stream is closed, EOF has been reached
             if (m_Closed)
-                return Result::UnexpectedEOF;
+                return Result::EndOfFile;
             // Otherwise we wait for m_IPollInterval and check again
             std::this_thread::sleep_for(m_IPollInterval);
             avail = GetAvailable();

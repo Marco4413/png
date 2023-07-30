@@ -5,6 +5,8 @@ const char* PNG::ResultToString(Result res)
     switch (res) {
     case Result::OK:
         return "OK";
+    case Result::EndOfFile:
+        return "EndOfFile";
     case Result::Unknown:
         return "Unknown";
     case Result::UnexpectedEOF:

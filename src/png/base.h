@@ -79,6 +79,7 @@ namespace PNG
     enum class Result
     {
         OK,
+        EndOfFile,
         Unknown,
         UnexpectedEOF,
         UnexpectedChunkType,

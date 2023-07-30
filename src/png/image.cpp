@@ -526,7 +526,7 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, 
 
             size_t bRead;
             auto rres = def.ReadVector(chunk.Data, &bRead);
-            if (rres == Result::UnexpectedEOF || bRead == 0)
+            if (rres == Result::EndOfFile)
                 break;
             else if (rres != Result::OK)
                 return rres;
@@ -609,7 +609,7 @@ PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth
 
             size_t bRead;
             auto rres = def.ReadVector(chunk.Data, &bRead);
-            if (rres == Result::UnexpectedEOF || bRead == 0)
+            if (rres == Result::EndOfFile)
                 break;
             else if (rres != Result::OK) {
                 idatWriterTRes = rres;

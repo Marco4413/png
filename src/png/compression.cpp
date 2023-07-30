@@ -85,12 +85,8 @@ PNG::Result PNG::ZLib::DecompressData(IStream& in, OStream& out)
                 memmove(inBuffer, inf.next_in, inf.avail_in);
 
             pres = in.ReadBuffer(inBuffer+inf.avail_in, IN_CAPACITY-inf.avail_in, &inSize);
-            if (pres != Result::OK) {
+            if (pres != Result::OK)
                 break;
-            } else if (inSize == 0) {
-                pres = Result::UnexpectedEOF;
-                break;
-            }
 
             inSize += inf.avail_in;
             inf.avail_in = inSize;
@@ -162,12 +158,11 @@ PNG::Result PNG::ZLib::CompressData(IStream& in, OStream& out, CompressionLevel 
                 memmove(inBuffer, def.next_in, def.avail_in);
 
             pres = in.ReadBuffer(inBuffer+def.avail_in, IN_CAPACITY-def.avail_in, &inSize);
-            if (pres == Result::UnexpectedEOF || (pres == Result::OK && inSize == 0)) {
+            if (pres == Result::EndOfFile) {
                 end = true;
                 continue;
-            } else if (pres != Result::OK) {
+            } else if (pres != Result::OK)
                 break;
-            }
 
             inSize += def.avail_in;
             def.avail_in = inSize;
