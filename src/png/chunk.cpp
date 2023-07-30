@@ -8,7 +8,7 @@ uint32_t PNG::Chunk::CalculateCRC() const
     return ~CRC::Update(c, Data.data(), Data.size());
 }
 
-PNG::Result PNG::Chunk::Read(IStream& in, PNG::Chunk& chunk)
+PNG::Result PNG::Chunk::Read(IStream& in, Chunk& chunk)
 {
     uint32_t len;
     PNG_RETURN_IF_NOT_OK(in.ReadU32, len);
@@ -20,7 +20,7 @@ PNG::Result PNG::Chunk::Read(IStream& in, PNG::Chunk& chunk)
     return Result::OK;
 }
 
-PNG::Result PNG::Chunk::Write(PNG::OStream& out) const
+PNG::Result PNG::Chunk::Write(OStream& out) const
 {
     PNG_RETURN_IF_NOT_OK(out.WriteU32, Length());
     PNG_RETURN_IF_NOT_OK(out.WriteU32, Type);
@@ -29,7 +29,7 @@ PNG::Result PNG::Chunk::Write(PNG::OStream& out) const
     return Result::OK;
 }
 
-PNG::Result PNG::IHDRChunk::Parse(const PNG::Chunk& chunk, PNG::IHDRChunk& ihdr)
+PNG::Result PNG::IHDRChunk::Parse(const Chunk& chunk, IHDRChunk& ihdr)
 {
     if (chunk.Type != ChunkType::IHDR)
         return Result::UnexpectedChunkType;
@@ -47,7 +47,7 @@ PNG::Result PNG::IHDRChunk::Parse(const PNG::Chunk& chunk, PNG::IHDRChunk& ihdr)
     return Result::OK;
 }
 
-PNG::Result PNG::IHDRChunk::Write(PNG::Chunk& chunk) const
+PNG::Result PNG::IHDRChunk::Write(Chunk& chunk) const
 {
     DynamicByteStream stream;
     PNG_RETURN_IF_NOT_OK(stream.WriteU32, Width);

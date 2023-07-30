@@ -1,61 +1,56 @@
 #include "png/base.h"
 
-const char* PNG::ResultToString(PNG::Result res)
+const char* PNG::ResultToString(Result res)
 {
     switch (res) {
-    case Result::OK:
+    using enum Result;
+    case OK:
         return "OK";
-    case Result::Unknown:
+    case Unknown:
         return "Unknown";
-    case Result::UnexpectedEOF:
+    case UnexpectedEOF:
         return "UnexpectedEOF";
-    case Result::UnexpectedChunkType:
+    case UnexpectedChunkType:
         return "UnexpectedChunkType";
-    case Result::UnknownNecessaryChunk:
+    case UnknownNecessaryChunk:
         return "UnknownNecessaryChunk";
-    case Result::UnknownCompressionMethod:
+    case UnknownCompressionMethod:
         return "UnknownCompressionMethod";
-    case Result::UnknownFilterMethod:
+    case UnknownFilterMethod:
         return "UnknownFilterMethod";
-    case Result::UnknownFilterType:
+    case UnknownFilterType:
         return "UnknownFilterType";
-    case Result::UnknownInterlaceMethod:
+    case UnknownInterlaceMethod:
         return "UnknownInterlaceMethod";
-    case Result::InvalidSignature:
+    case InvalidSignature:
         return "InvalidSignature";
-    case Result::InvalidColorType:
+    case InvalidColorType:
         return "InvalidColorType";
-    case Result::InvalidBitDepth:
+    case InvalidBitDepth:
         return "InvalidBitDepth";
-    case Result::InvalidPixelBuffer:
+    case InvalidPixelBuffer:
         return "InvalidPixelBuffer";
-    case Result::InvalidImageSize:
+    case InvalidImageSize:
         return "InvalidImageSize";
-    case Result::UnsupportedColorType:
+    case UnsupportedColorType:
         return "UnsupportedColorType";
-    case Result::CorruptedChunk:
+    case CorruptedChunk:
         return "CorruptedChunk";
-    case Result::DuplicatePalette:
+    case DuplicatePalette:
         return "DuplicatePalette";
-    case Result::IllegalPaletteChunk:
+    case IllegalPaletteChunk:
         return "IllegalPaletteChunk";
-    case Result::InvalidPaletteSize:
+    case InvalidPaletteSize:
         return "InvalidPaletteSize";
-    case Result::PaletteNotFound:
+    case PaletteNotFound:
         return "PaletteNotFound";
-    case Result::InvalidPaletteIndex:
+    case InvalidPaletteIndex:
         return "InvalidPaletteIndex";
-    case Result::UpdatingClosedStreamError:
+    case UpdatingClosedStreamError:
         return "UpdatingClosedStreamError";
-    /* TODO: Custom ZLib implementation
-    case Result::ZLib_InvalidCompressionMethod:
-        return "ZLib_InvalidCompressionMethod";
-    case Result::ZLib_InvalidLZ77WindowSize:
-        return "ZLib_InvalidLZ77WindowSize";
-    */
-    case Result::ZLib_NotAvailable:
+    case ZLib_NotAvailable:
         return "ZLib_NotAvailable";
-    case Result::ZLib_DataError:
+    case ZLib_DataError:
         return "ZLib_DataError";
     default:
         PNG_UNREACHABLEF("PNG::ResultToString case missing (%d).", (int)res);

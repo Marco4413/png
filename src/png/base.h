@@ -102,11 +102,6 @@ namespace PNG
         UpdatingClosedStreamError,
         ZLib_NotAvailable,
         ZLib_DataError,
-        /* TODO: Custom ZLib implementation
-        ZLib_InvalidCompressionMethod,
-        ZLib_InvalidLZ77WindowSize,
-        ZLib_FCHECKFailed,
-        */
     };
     
     const char* ResultToString(Result res);
@@ -119,10 +114,8 @@ namespace PNG
         size_t m_StartOffset;
         size_t m_Stride;
     public:
-        ArrayView2D(T* data, size_t startOffset, size_t stride)
-            : m_Data(data), m_StartOffset(startOffset), m_Stride(stride) { }
         ArrayView2D(const T* data, size_t startOffset, size_t stride)
-            : ArrayView2D((T*)data, startOffset, stride) { }
+            : m_Data((T*)data), m_StartOffset(startOffset), m_Stride(stride) { }
 
         ArrayView2D(const ArrayView2D<T>& other) { *this = other; }
         

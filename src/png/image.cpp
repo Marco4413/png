@@ -60,14 +60,14 @@ size_t PNG::ColorType::GetBytesPerPixel(uint8_t colorType, uint8_t bitDepth)
     return samples * GetBytesPerSample(bitDepth);
 }
 
-PNG::Image::Image(const PNG::Image& other)
+PNG::Image::Image(const Image& other)
     : PNG::Image(other.m_Width, other.m_Height)
 {
     if (other.m_Pixels)
         memcpy(m_Pixels, other.m_Pixels, m_Width * m_Height * sizeof(Color));
 }
 
-PNG::Image::Image(PNG::Image&& other)
+PNG::Image::Image(Image&& other)
 {
     m_Width = other.m_Width;
     m_Height = other.m_Height;
