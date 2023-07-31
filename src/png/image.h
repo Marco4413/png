@@ -45,6 +45,8 @@ namespace PNG
         Color()
             : Color(0.0f) { }
         
+        Color& Clamp();
+        
         Color& operator+=(const Color& other);
         Color operator+(const Color& other) const;
 
@@ -117,12 +119,13 @@ namespace PNG
         };
     }
 
+    enum class ScalingMethod
+    {
+        Nearest, Bilinear,
+    };
+
     class Image
     {
-    private:
-        size_t m_Width = 0;
-        size_t m_Height = 0;
-        Color* m_Pixels = nullptr;
     public:
         Image(size_t width, size_t height) { SetSize(width, height); }
 
@@ -134,6 +137,7 @@ namespace PNG
 
         virtual ~Image() { delete[] m_Pixels; }
 
+        void Resize(size_t width, size_t height, ScalingMethod scalingMethod = ScalingMethod::Nearest);
         void SetSize(size_t width, size_t height);
         inline void Clear() { SetSize(0, 0); }
 
@@ -145,6 +149,21 @@ namespace PNG
 
         inline const Color* operator[](size_t y) const { return &m_Pixels[y * m_Width]; }
         inline Color* operator[](size_t y) { return &m_Pixels[y * m_Width]; }
+
+        inline const Color& At(size_t x, size_t y, int dx = 0, int dy = 0) const
+        {
+            // Check if (x+dx, y+dy) is out of bounds, if true get the closest edge, otherwise get the color at that pos
+            return (*this)
+                [(dy > 0 || y > (size_t)-dy) * (y + dy >= m_Height ? m_Height - 1 : y + dy)]
+                [(dx > 0 || x > (size_t)-dx) * (x + dx >= m_Width  ? m_Width  - 1 : x + dx)];
+        }
+
+        inline Color& At(size_t x, size_t y, int dx = 0, int dy = 0)
+        {
+            return (*this)
+                [(dy > 0 || y > (size_t)-dy) * (y + dy >= m_Height ? m_Height - 1 : y + dy)]
+                [(dx > 0 || x > (size_t)-dx) * (x + dx >= m_Width  ? m_Width  - 1 : x + dx)];
+        }
         
         Result WriteRawPixels(uint8_t colorType, size_t bitDepth, OStream& out) const;
         Result WriteDitheredRawPixels(const std::vector<Color>& palette, size_t bitDepth, OStream& out) const;
@@ -157,6 +176,11 @@ namespace PNG
         
         static Result Read(IStream& in, Image& out);
         static Result ReadMT(IStream& in, Image& out);
+
+    private:
+        size_t m_Width = 0;
+        size_t m_Height = 0;
+        Color* m_Pixels = nullptr;
     };
 }
 

@@ -3,6 +3,8 @@
 #include "png/chunk.h"
 #include "png/filter.h"
 
+#include <algorithm>
+#include <cmath>
 #include <thread>
 
 bool PNG::ColorType::IsValidBitDepth(uint8_t colorType, uint8_t bitDepth)
@@ -58,6 +60,15 @@ size_t PNG::ColorType::GetBytesPerPixel(uint8_t colorType, uint8_t bitDepth)
     PNG_ASSERT(samples > 0, "PNG::ColorType::GetBytesPerPixel Invalid sample count for color.");
     PNG_ASSERT(IsValidBitDepth(colorType, bitDepth), "PNG::ColorType::GetBytesPerPixel Bit depth for color type is invalid.");
     return samples * GetBytesPerSample(bitDepth);
+}
+
+PNG::Color& PNG::Color::Clamp()
+{
+    R = std::clamp<float>(R, 0.0, 1.0);
+    G = std::clamp<float>(G, 0.0, 1.0);
+    B = std::clamp<float>(B, 0.0, 1.0);
+    A = std::clamp<float>(A, 0.0, 1.0);
+    return *this;
 }
 
 PNG::Color& PNG::Color::operator+=(const Color& other)
@@ -126,10 +137,7 @@ PNG::Color& PNG::Color::operator/=(float n)
 PNG::Color PNG::Color::operator/(float n) const
 {
     return std::move(Color(
-        R / n,
-        G / n,
-        B / n,
-        A / n
+        R / n, G / n, B / n, A / n
     ));
 }
 
@@ -141,13 +149,60 @@ PNG::Image::Image(const Image& other)
 }
 
 PNG::Image::Image(Image&& other)
+    : m_Width(other.m_Width), m_Height(other.m_Height), m_Pixels(other.m_Pixels)
 {
-    m_Width = other.m_Width;
-    m_Height = other.m_Height;
-    m_Pixels = other.m_Pixels;
     other.m_Width = 0;
     other.m_Height = 0;
     other.m_Pixels = nullptr;
+}
+
+void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scalingMethod)
+{
+    Image src(std::move(*this));
+    SetSize(newWidth, newHeight);
+    Image& dst = *this;
+
+    if (!(dst.m_Width && dst.m_Height &&
+        src.m_Width && src.m_Height))
+        return;
+    
+    double scaleX = src.m_Width / (double)m_Width;
+    double scaleY = src.m_Height / (double)m_Height;
+    
+    switch (scalingMethod) {
+    case ScalingMethod::Nearest:
+        for (size_t y = 0; y < m_Height; y++) {
+            size_t srcy = std::floor(y * scaleY + 0.5);
+            for (size_t x = 0; x < m_Width; x++) {
+                size_t srcx = std::floor(x * scaleX + 0.5);
+                dst[y][x] = src[srcy][srcx];
+            }
+        }
+        break;
+    // https://en.wikipedia.org/wiki/Bilinear_interpolation
+    case ScalingMethod::Bilinear:
+        for (size_t y = 0; y < m_Height; y++) {
+            double cy = (y+0.25) * scaleY;
+            size_t srcy = (size_t)cy;
+            for (size_t x = 0; x < m_Width; x++) {
+                double cx = (x+0.25) * scaleX;
+                size_t srcx = (size_t)cx;
+
+                const Color& col11 = src.At(srcx, srcy, 0, 0);
+                const Color& col21 = src.At(srcx, srcy, 1, 0);
+                const Color& col12 = src.At(srcx, srcy, 0, 1);
+                const Color& col22 = src.At(srcx, srcy, 1, 1);
+                
+                Color colY1 = Lerp(cx-srcx, col11, col21);
+                Color colY2 = Lerp(cx-srcx, col12, col22);
+                dst[y][x]   = Lerp(cy-srcy, colY1, colY2);
+                dst[y][x].Clamp();
+            }
+        }
+        break;
+    default:
+        PNG_UNREACHABLEF("PNG::Image::Resize case missing (%d).", (int)scalingMethod);
+    }
 }
 
 void PNG::Image::SetSize(size_t width, size_t height)
@@ -210,14 +265,14 @@ PNG::Result PNG::Image::LoadRawPixels(uint8_t colorType, size_t bitDepth, const 
             color.R = gray;
             color.G = gray;
             color.B = gray;
-            color.A = 1.0f;
+            color.A = 1.0;
             break;
         }
         case ColorType::RGB:
             color.R = (rawColor[0] & MAX_SAMPLE_VALUE) / (float)MAX_SAMPLE_VALUE;
             color.G = (rawColor[1] & MAX_SAMPLE_VALUE) / (float)MAX_SAMPLE_VALUE;
             color.B = (rawColor[2] & MAX_SAMPLE_VALUE) / (float)MAX_SAMPLE_VALUE;
-            color.A = 1.0f;
+            color.A = 1.0;
             break;
         case ColorType::PALETTE: {
             size_t paletteIndex = rawColor[0];
@@ -277,7 +332,7 @@ PNG::Result PNG::Image::WriteRawPixels(uint8_t colorType, size_t bitDepth, OStre
             switch (colorType)
             {
             case ColorType::GRAYSCALE:
-                rawColor[0] = (color.R + color.G + color.B) / 3.0f * MAX_SAMPLE_VALUE;
+                rawColor[0] = (color.R + color.G + color.B) / 3.0 * MAX_SAMPLE_VALUE;
                 break;
             case ColorType::RGB:
                 rawColor[0] = color.R * MAX_SAMPLE_VALUE;
@@ -285,7 +340,7 @@ PNG::Result PNG::Image::WriteRawPixels(uint8_t colorType, size_t bitDepth, OStre
                 rawColor[2] = color.B * MAX_SAMPLE_VALUE;
                 break;
             case ColorType::GRAYSCALE_ALPHA:
-                rawColor[0] = (color.R + color.G + color.B) / 3.0f * MAX_SAMPLE_VALUE;
+                rawColor[0] = (color.R + color.G + color.B) / 3.0 * MAX_SAMPLE_VALUE;
                 rawColor[1] = color.A * MAX_SAMPLE_VALUE;
                 break;
             case ColorType::RGBA:
@@ -355,31 +410,31 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
 
 #if 1 // Floyd Steinberg dithering
             if (x + 1 < m_Width)
-                img[y][x+1] += quantError * (7.0f / 16);
+                img[y][x+1] += quantError * (7.0 / 16);
 
             if (y + 1 < m_Height) {
                 if (x > 1)
-                    img[y+1][x-1] += quantError * (3.0f / 16);
-                img[y+1][x] += quantError * (5.0f / 16);
+                    img[y+1][x-1] += quantError * (3.0 / 16);
+                img[y+1][x] += quantError * (5.0 / 16);
                 if (x + 1 < m_Width)
-                    img[y+1][x+1] += quantError * (1.0f / 16);
+                    img[y+1][x+1] += quantError * (1.0 / 16);
             }
 #else // Atkinson dithering
             if (x + 1 < m_Width)
-                img[y][x+1] += quantError * (1.0f / 8);
+                img[y][x+1] += quantError * (1.0 / 8);
             if (x + 2 < m_Width)
-                img[y][x+2] += quantError * (1.0f / 8);
+                img[y][x+2] += quantError * (1.0 / 8);
 
             if (y + 1 < m_Height) {
                 if (x > 1)
-                    img[y+1][x-1] += quantError * (1.0f / 8);
-                img[y+1][x] += quantError * (1.0f / 8);
+                    img[y+1][x-1] += quantError * (1.0 / 8);
+                img[y+1][x] += quantError * (1.0 / 8);
                 if (x + 1 < m_Width)
-                    img[y+1][x+1] += quantError * (1.0f / 8);
+                    img[y+1][x+1] += quantError * (1.0 / 8);
             }
 
             if (y + 2 < m_Height)
-                img[y+2][x] += quantError * (1.0f / 8);
+                img[y+2][x] += quantError * (1.0 / 8);
 #endif
         }
 
@@ -444,9 +499,9 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
             }
 
             for (size_t i = 0; i < chunk.Length(); i += 3) {
-                palette.emplace_back(chunk.Data[i]/255.0f,
-                    chunk.Data[i+1]/255.0f,
-                    chunk.Data[i+2]/255.0f);
+                palette.emplace_back(chunk.Data[i]/255.0,
+                    chunk.Data[i+1]/255.0,
+                    chunk.Data[i+2]/255.0);
             }
             break;
         case ChunkType::IDAT:
@@ -551,9 +606,9 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
                 }
 
                 for (size_t i = 0; i < chunk.Length(); i += 3) {
-                    palette.emplace_back(chunk.Data[i]/255.0f,
-                        chunk.Data[i+1]/255.0f,
-                        chunk.Data[i+2]/255.0f);
+                    palette.emplace_back(chunk.Data[i]/255.0,
+                        chunk.Data[i+1]/255.0,
+                        chunk.Data[i+2]/255.0);
                 }
                 break;
             case ChunkType::IDAT:
