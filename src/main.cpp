@@ -68,11 +68,10 @@ int main(int argc, char** argv)
     });
 
     bench("Multi Threaded Image Writing", [&img]() {
-        std::vector<PNG::Color> palette { PNG::Color(0.0f), PNG::Color(1.0f) };
         std::ofstream file("out/out-mt.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
-        ASSERT_OK(img.WriteMT, outStream, PNG::ColorType::PALETTE, 1, &palette,
-            PNG::CompressionLevel::BestSize, PNG::InterlaceMethod::NONE);
+        ASSERT_OK(img.WriteMT, outStream, PNG::ColorType::RGBA, 8, nullptr,
+            PNG::CompressionLevel::Default, PNG::InterlaceMethod::NONE);
     });
 
     /*
