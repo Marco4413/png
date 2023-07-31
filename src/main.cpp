@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <fstream>
+#include <functional>
 
 #include "png/png.h"
 
@@ -13,23 +14,24 @@
         } \
     } while (0)
 
-class ScopeTimer
+void bench(const char* name, const std::function<void()>& fun, size_t samples = 1)
 {
-public:
-    ScopeTimer(const char* name)
-        : m_Name(name), m_Start(std::chrono::high_resolution_clock::now()) { }
-
-    ~ScopeTimer()
-    {
+    if (samples == 0)
+        return;
+    
+    size_t totalTime = 0;
+    for (size_t i = 0; i < samples; i++) {
+        auto start = std::chrono::high_resolution_clock::now();
+        fun();
         auto end = std::chrono::high_resolution_clock::now();
-        auto dur = std::chrono::duration_cast<std::chrono::microseconds>(end - m_Start);
-        printf("%s took %ldus\n", m_Name, dur.count());
+        totalTime += std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
     }
 
-private:
-    const char* m_Name;
-    const std::chrono::high_resolution_clock::time_point m_Start;
-};
+    if (samples == 1)
+        printf("%s took %ldus.\n", name, totalTime);
+    else
+        printf("%s took an average of %ldus on %ld samples.\n", name, totalTime / samples, samples);
+}
 
 int main(int argc, char** argv)
 {
@@ -42,57 +44,66 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    {
+    bench("Single Threaded Image Reading", [&filePath]() {
         std::ifstream file(filePath, std::ios::binary);
         PNG::IStreamWrapper inFile(file);
         PNG::Image img;
-        ScopeTimer t("Single Threaded Image Reading");
         ASSERT_OK(PNG::Image::Read, inFile, img);
-    }
+    });
 
     PNG::Image img;
-    {
+    bench("Multi Threaded Image Reading", [&filePath, &img]() {
         std::ifstream file(filePath, std::ios::binary);
         PNG::IStreamWrapper inFile(file);
-        ScopeTimer t("Multi Threaded Image Reading");
         ASSERT_OK(PNG::Image::ReadMT, inFile, img);
-    }
+    });
 
-    {
+    // img.Resize(img.GetWidth() * 2, img.GetHeight() * 2, PNG::ScalingMethod::Bilinear);
+
+    bench("Single Threaded Image Writing", [&img]() {
         std::ofstream file("out/out.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
-        ScopeTimer t("Single Threaded Image Writing");
-        ASSERT_OK(img.Write, outStream, PNG::ColorType::PALETTE, PNG::Palettes::WEB_SAFEST_BIT_DEPTH, &PNG::Palettes::WEB_SAFEST,
-            PNG::CompressionLevel::BestSize, PNG::InterlaceMethod::NONE);
-    }
+        ASSERT_OK(img.Write, outStream, PNG::ColorType::RGBA, 8, nullptr,
+            PNG::CompressionLevel::Default, PNG::InterlaceMethod::NONE);
+    });
 
-    {
+    bench("Multi Threaded Image Writing", [&img]() {
+        std::vector<PNG::Color> palette { PNG::Color(0.0f), PNG::Color(1.0f) };
         std::ofstream file("out/out-mt.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
-        ScopeTimer t("Multi Threaded Image Writing");
-        ASSERT_OK(img.WriteMT, outStream, PNG::ColorType::PALETTE, PNG::Palettes::WEB_SAFE_BIT_DEPTH, &PNG::Palettes::WEB_SAFE,
+        ASSERT_OK(img.WriteMT, outStream, PNG::ColorType::PALETTE, 1, &palette,
             PNG::CompressionLevel::BestSize, PNG::InterlaceMethod::NONE);
-    }
+    });
 
     /*
-    Commit @92ece21
-    Some benchmarks I have done (while using the O3 optimized build):
+    Commit @4f560aa
+    These benchmarks are done using the O3 optimized build, and their timings are the average of 10 runs.
+    Writing has been done using ColorType::RGBA, 8bit depth, CompressionLevel::Default and InterlaceMethod::None.
+    Only 2 images were used, and Writing benchmarks are only stated once per image.
     2560x1440 (449 IDAT, NI) ->
-        ST 275ms
-        MT 191ms
+        R-ST 290ms
+        R-MT 212ms
+        W-ST 1.479s
+        W-MT 914ms
     2560x1440 (511 IDAT, A7) ->
-        ST 302ms
-        MT 223ms
+        R-ST 341ms
+        R-MT 232ms
     800x600 (1 IDAT, NI) ->
-        ST 20ms
-        MT 17ms
+        R-ST 28ms
+        R-MT 18ms
+        W-ST 125ms
+        W-MT 68ms
     800x600 (30 IDAT, NI) ->
-        ST 31ms
-        MT 23ms
+        R-ST 32ms
+        R-MT 24ms
     800x600 (39 IDAT, A7) ->
-        ST 34ms
-        MT 26ms
+        R-ST 37ms
+        R-MT 27ms
     
+    R: Reading
+    W: Writing
+    ST: Single Threaded
+    MT: Multi Threaded
     NI: No Interlace
     A7: Adam7 Interlace
     */
