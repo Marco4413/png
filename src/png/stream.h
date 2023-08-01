@@ -20,7 +20,7 @@ namespace PNG
          * @param bytesRead
          * A pointer to a variable which will hold the number of bytes read.
          * If `nullptr`, the function should return `PNG::Result::UnexpectedEOF` if it read less then `bufLen` bytes.
-         * Otherwise, the function will try to read at least one byte into the buffer, returning `PNG::Result::UnexpectedEOF` if no data is to be expected.
+         * Otherwise, the function will try to read at least one byte into the buffer, returning `PNG::Result::EndOfFile` if no more data is to be expected.
          * @return `Result::OK` if no error was found (see `bytesRead` for more details).
          */
         virtual Result ReadBuffer(void* buf, size_t bufLen, size_t* bytesRead = nullptr) = 0;
