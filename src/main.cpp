@@ -59,19 +59,27 @@ int main(int argc, char** argv)
     });
 
     // img.Resize(img.GetWidth() * 2, img.GetHeight() * 2, PNG::ScalingMethod::Bilinear);
+    
+    const PNG::ExportSettings exportSettings {
+        .ColorType = PNG::ColorType::RGBA,
+        .BitDepth = 8,
+        .Palette = nullptr,
+        .DitheringMethod = PNG::DitheringMethod::None,
+        .CompressionLevel = PNG::CompressionLevel::Default,
+        .InterlaceMethod = PNG::InterlaceMethod::NONE,
+        .IDATSize = 32768,
+    };
 
-    bench("Single Threaded Image Writing", [&img]() {
+    bench("Single Threaded Image Writing", [&img, &exportSettings]() {
         std::ofstream file("out/out.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
-        ASSERT_OK(img.Write, outStream, PNG::ColorType::RGBA, 8, nullptr, PNG::DitheringMethod::None,
-            PNG::CompressionLevel::Default, PNG::InterlaceMethod::NONE);
+        ASSERT_OK(img.Write, outStream, exportSettings);
     });
 
-    bench("Multi Threaded Image Writing", [&img]() {
+    bench("Multi Threaded Image Writing", [&img, &exportSettings]() {
         std::ofstream file("out/out-mt.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
-        ASSERT_OK(img.WriteMT, outStream, PNG::ColorType::RGBA, 8, nullptr, PNG::DitheringMethod::None,
-            PNG::CompressionLevel::Default, PNG::InterlaceMethod::NONE);
+        ASSERT_OK(img.WriteMT, outStream, exportSettings);
     });
 
     /*

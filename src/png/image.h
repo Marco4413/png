@@ -21,6 +21,22 @@ namespace PNG
         None, Floyd, Atkinson
     };
 
+    struct ExportSettings
+    {
+        uint8_t ColorType = PNG::ColorType::RGBA;
+        size_t BitDepth = 8;
+        const std::vector<Color>* Palette = nullptr;
+        PNG::DitheringMethod DitheringMethod = PNG::DitheringMethod::None;
+        PNG::CompressionLevel CompressionLevel = PNG::CompressionLevel::Default;
+        uint8_t InterlaceMethod = PNG::InterlaceMethod::NONE;
+        // Split into IDAT chunks of ~32KiB
+        // This is four times the size GIMP uses (and I suppose the official libpng implementation)
+        // Set to -1 (or ~0) to create the least amount of IDAT chunks
+        uint32_t IDATSize = 32768;
+
+        Result Validate() const;
+    };
+
     class Image
     {
     public:
@@ -36,7 +52,6 @@ namespace PNG
 
         Image& operator=(const Image& other);
         Image& operator=(Image&& other);
-
 
         void Resize(size_t width, size_t height, ScalingMethod scalingMethod = ScalingMethod::Nearest);
         void SetSize(size_t width, size_t height);
@@ -70,12 +85,8 @@ namespace PNG
         Result WriteDitheredRawPixels(const std::vector<Color>& palette, size_t bitDepth, DitheringMethod ditheringMethod, OStream& out) const;
         Result LoadRawPixels(uint8_t colorType, size_t bitDepth, const std::vector<Color>* palette, const std::vector<uint8_t>& in);
 
-        Result Write(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8, const std::vector<Color>* palette = nullptr,
-            DitheringMethod ditheringMethod = DitheringMethod::None, CompressionLevel clevel = CompressionLevel::Default,
-            uint8_t interlaceMethod = InterlaceMethod::NONE) const;
-        Result WriteMT(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8, const std::vector<Color>* palette = nullptr,
-            DitheringMethod ditheringMethod = DitheringMethod::None, CompressionLevel clevel = CompressionLevel::Default,
-            uint8_t interlaceMethod = InterlaceMethod::NONE) const;
+        Result Write(OStream& out, const ExportSettings& cfg = ExportSettings{}) const;
+        Result WriteMT(OStream& out, const ExportSettings& cfg = ExportSettings{}) const;
         
         static Result Read(IStream& in, Image& out);
         static Result ReadMT(IStream& in, Image& out);

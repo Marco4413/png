@@ -3,9 +3,39 @@
 #include "png/chunk.h"
 #include "png/filter.h"
 
-#include <algorithm>
 #include <cmath>
 #include <thread>
+
+PNG::Result PNG::ExportSettings::Validate() const
+{
+    if (IDATSize == 0)
+        return Result::IllegalIDATSize;
+
+    if (ColorType == ColorType::PALETTE) {
+        if (!Palette)
+            return Result::PaletteNotFound;
+        size_t maxPaletteSize = (1 << BitDepth) - 1;
+        if (Palette->size() >= maxPaletteSize)
+            return Result::InvalidPaletteSize;
+    }
+    
+    size_t samples = ColorType::GetSamples(ColorType);
+    if (samples == 0)
+        return Result::InvalidColorType;
+
+    if (!ColorType::IsValidBitDepth(ColorType, BitDepth))
+        return Result::InvalidBitDepth;
+    
+    switch (InterlaceMethod) {
+    case InterlaceMethod::NONE:
+    case InterlaceMethod::ADAM7:
+        break;
+    default:
+        return Result::UnknownInterlaceMethod;
+    }
+
+    return Result::OK;
+}
 
 PNG::Image& PNG::Image::operator=(const Image& other)
 {
@@ -585,30 +615,20 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
     return Result::OK;
 }
 
-PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, const std::vector<Color>* palette,
-    DitheringMethod ditheringMethod, CompressionLevel clevel, uint8_t interlaceMethod) const
+PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg) const
 {
-    if (colorType == ColorType::PALETTE && !palette)
-        return Result::PaletteNotFound;
-
-    size_t samples = ColorType::GetSamples(colorType);
-    if (samples == 0)
-        return Result::InvalidColorType;
-
-    if (!ColorType::IsValidBitDepth(colorType, bitDepth))
-        return Result::InvalidBitDepth;
-
+    PNG_RETURN_IF_NOT_OK(cfg.Validate);
     PNG_RETURN_IF_NOT_OK(out.WriteBuffer, PNG_SIGNATURE, PNG_SIGNATURE_LEN);
     PNG_RETURN_IF_NOT_OK(out.Flush);
 
     IHDRChunk ihdr;
     ihdr.Width = m_Width;
     ihdr.Height = m_Height;
-    ihdr.BitDepth = bitDepth;
-    ihdr.ColorType = colorType;
+    ihdr.BitDepth = cfg.BitDepth;
+    ihdr.ColorType = cfg.ColorType;
     ihdr.CompressionMethod = CompressionMethod::ZLIB;
     ihdr.FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
-    ihdr.InterlaceMethod = interlaceMethod;
+    ihdr.InterlaceMethod = cfg.InterlaceMethod;
 
     Chunk chunk;
     PNG_RETURN_IF_NOT_OK(ihdr.Write, chunk);
@@ -617,13 +637,13 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, 
 
     DynamicByteStream rawImage;
     if (ihdr.ColorType == ColorType::PALETTE) {
-        PNG_ASSERT(palette, "PNG::Image::Write Early palette check failed.");
-        PNG_RETURN_IF_NOT_OK(WriteDitheredRawPixels, *palette, ihdr.BitDepth, ditheringMethod, rawImage);
+        PNG_ASSERT(cfg.Palette, "PNG::Image::Write Early palette check failed.");
+        PNG_RETURN_IF_NOT_OK(WriteDitheredRawPixels, *cfg.Palette, ihdr.BitDepth, cfg.DitheringMethod, rawImage);
 
         chunk.Type = ChunkType::PLTE;
-        chunk.Data.resize(palette->size() * 3);
-        for (size_t i = 0; i < palette->size(); i++) {
-            const Color& color = (*palette)[i];
+        chunk.Data.resize(cfg.Palette->size() * 3);
+        for (size_t i = 0; i < cfg.Palette->size(); i++) {
+            const Color& color = (*cfg.Palette)[i];
             chunk.Data[i*3  ] = color.R * 255;
             chunk.Data[i*3+1] = color.G * 255;
             chunk.Data[i*3+2] = color.B * 255;
@@ -635,24 +655,24 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, 
     } else PNG_RETURN_IF_NOT_OK(WriteRawPixels, ihdr.ColorType, ihdr.BitDepth, rawImage);
     PNG_RETURN_IF_NOT_OK(rawImage.Close);
 
+    size_t samples = ColorType::GetSamples(cfg.ColorType);
+    PNG_ASSERT(samples, "PNG::Image::Write Early color type check failed.");
+
     DynamicByteStream inf;
     PNG_RETURN_IF_NOT_OK(InterlacePixels, ihdr.InterlaceMethod, ihdr.FilterMethod,
-        ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, clevel, rawImage, inf);
+        ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, cfg.CompressionLevel, rawImage, inf);
     PNG_RETURN_IF_NOT_OK(inf.Close);
 
     {
         DynamicByteStream def;
-        PNG_RETURN_IF_NOT_OK(CompressData, ihdr.CompressionMethod, inf, def, clevel);
+        PNG_RETURN_IF_NOT_OK(CompressData, ihdr.CompressionMethod, inf, def, cfg.CompressionLevel);
         PNG_RETURN_IF_NOT_OK(def.Close);
 
-        // Split into IDAT chunks of ~32KB
-        // This is four times the size GIMP uses (and I suppose the official libpng implementation)
-        // It does not really improve performance (it for sure makes it worse) but it is done to keep it the same as the MT version
-        const size_t BUF_CAP = 32768;
+        // Split IDAT chunks
         chunk.Type = ChunkType::IDAT;
 
         while (true) {
-            chunk.Data.resize(BUF_CAP);
+            chunk.Data.resize(cfg.IDATSize);
 
             size_t bRead;
             auto rres = def.ReadVector(chunk.Data, &bRead);
@@ -679,30 +699,20 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, 
     return Result::OK;
 }
 
-PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth, const std::vector<Color>* palette,
-    DitheringMethod ditheringMethod, CompressionLevel clevel, uint8_t interlaceMethod) const
+PNG::Result PNG::Image::WriteMT(OStream& out, const ExportSettings& cfg) const
 {
-    if (colorType == ColorType::PALETTE && !palette)
-        return Result::PaletteNotFound;
-
-    size_t samples = ColorType::GetSamples(colorType);
-    if (samples == 0)
-        return Result::InvalidColorType;
-
-    if (!ColorType::IsValidBitDepth(colorType, bitDepth))
-        return Result::InvalidBitDepth;
-
+    PNG_RETURN_IF_NOT_OK(cfg.Validate);
     PNG_RETURN_IF_NOT_OK(out.WriteBuffer, PNG_SIGNATURE, PNG_SIGNATURE_LEN);
     PNG_RETURN_IF_NOT_OK(out.Flush);
 
     IHDRChunk ihdr;
     ihdr.Width = m_Width;
     ihdr.Height = m_Height;
-    ihdr.BitDepth = bitDepth;
-    ihdr.ColorType = colorType;
+    ihdr.BitDepth = cfg.BitDepth;
+    ihdr.ColorType = cfg.ColorType;
     ihdr.CompressionMethod = CompressionMethod::ZLIB;
     ihdr.FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
-    ihdr.InterlaceMethod = interlaceMethod;
+    ihdr.InterlaceMethod = cfg.InterlaceMethod;
 
     {
         Chunk chunk;
@@ -711,11 +721,11 @@ PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth
         PNG_RETURN_IF_NOT_OK(out.Flush);
 
         if (ihdr.ColorType == ColorType::PALETTE) {
-            PNG_ASSERT(palette, "PNG::Image::Write Early palette check failed.");
+            PNG_ASSERT(cfg.Palette, "PNG::Image::Write Early palette check failed.");
             chunk.Type = ChunkType::PLTE;
-            chunk.Data.resize(palette->size() * 3);
-            for (size_t i = 0; i < palette->size(); i++) {
-                const Color& color = (*palette)[i];
+            chunk.Data.resize(cfg.Palette->size() * 3);
+            for (size_t i = 0; i < cfg.Palette->size(); i++) {
+                const Color& color = (*cfg.Palette)[i];
                 chunk.Data[i*3  ] = color.R * 255;
                 chunk.Data[i*3+1] = color.G * 255;
                 chunk.Data[i*3+2] = color.B * 255;
@@ -729,36 +739,36 @@ PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth
 
     DynamicByteStream rawImage;
     Result rawReaderTRes;
-    std::thread rawReaderT([this, palette, &ditheringMethod, &ihdr, &rawImage, &rawReaderTRes]() {
+    std::thread rawReaderT([this, &cfg, &ihdr, &rawImage, &rawReaderTRes]() {
         if (ihdr.ColorType == ColorType::PALETTE) {
-            PNG_ASSERT(palette, "PNG::Image::Write Early palette check failed.");
-            rawReaderTRes = WriteDitheredRawPixels(*palette, ihdr.BitDepth, ditheringMethod, rawImage);
+            PNG_ASSERT(cfg.Palette, "PNG::Image::Write Early palette check failed.");
+            rawReaderTRes = WriteDitheredRawPixels(*cfg.Palette, ihdr.BitDepth, cfg.DitheringMethod, rawImage);
         } else rawReaderTRes = WriteRawPixels(ihdr.ColorType, ihdr.BitDepth, rawImage);
     });
 
     DynamicByteStream inf;
     Result interlacerTRes;
-    std::thread interlacerT([&ihdr, samples, clevel, &rawImage, &inf, &interlacerTRes]() {
+    std::thread interlacerT([&cfg, &ihdr, &rawImage, &inf, &interlacerTRes]() {
+        size_t samples = ColorType::GetSamples(cfg.ColorType);
+        PNG_ASSERT(samples, "PNG::Image::Write Early color type check failed.");
         interlacerTRes = InterlacePixels(ihdr.InterlaceMethod, ihdr.FilterMethod,
-            ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, clevel, rawImage, inf);
+            ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, cfg.CompressionLevel, rawImage, inf);
     });
 
     DynamicByteStream def;
     Result deflaterTRes;
-    std::thread deflaterT([&ihdr, clevel, &inf, &def, &deflaterTRes]() {
-        deflaterTRes = CompressData(ihdr.CompressionMethod, inf, def, clevel);
+    std::thread deflaterT([&cfg, &ihdr, &inf, &def, &deflaterTRes]() {
+        deflaterTRes = CompressData(ihdr.CompressionMethod, inf, def, cfg.CompressionLevel);
     });
 
     Result idatWriterTRes = Result::OK;
-    std::thread idatWriterT([&out, &def, &idatWriterTRes]() {
-        // Split into IDAT chunks of ~32KB
-        // This is four times the size GIMP uses (and I suppose the official libpng implementation)
-        const size_t BUF_CAP = 32768;
+    std::thread idatWriterT([&cfg, &out, &def, &idatWriterTRes]() {
+        // Split IDAT chunks
         Chunk chunk;
         chunk.Type = ChunkType::IDAT;
 
         while (true) {
-            chunk.Data.resize(BUF_CAP);
+            chunk.Data.resize(cfg.IDATSize);
 
             size_t bRead;
             auto rres = def.ReadVector(chunk.Data, &bRead);

@@ -47,6 +47,8 @@ const char* PNG::ResultToString(Result res)
         return "PaletteNotFound";
     case Result::InvalidPaletteIndex:
         return "InvalidPaletteIndex";
+    case Result::IllegalIDATSize:
+        return "IllegalIDATSize";
     case Result::UpdatingClosedStreamError:
         return "UpdatingClosedStreamError";
     case Result::ZLib_NotAvailable:
