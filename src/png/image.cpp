@@ -253,7 +253,8 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
     std::vector<uint8_t> line(m_Width);
     for (size_t y = 0; y < m_Height; y++) {
         for (size_t x = 0; x < m_Width; x++) {
-            const Color& color = img[y][x];
+            // Clamping Color to remove error diffusion artifacts
+            const Color& color = img[y][x].Clamp();
 
             // Find closest palette color
             // Best Squared Distance
