@@ -24,13 +24,13 @@ namespace PNG
     class Chunk
     {
     public:
-        uint32_t Length() const { return Data.size(); }
         uint32_t Type;
         std::vector<uint8_t> Data;
         uint32_t CRC;
     public:
         Chunk() = default;
 
+        uint32_t Length() const { return Data.size(); }
         uint32_t CalculateCRC() const;
 
         static Result Read(IStream& in, Chunk& chunk);

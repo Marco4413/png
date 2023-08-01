@@ -110,10 +110,6 @@ namespace PNG
     template<typename T>
     class ArrayView2D
     {
-    private:
-        T* m_Data;
-        size_t m_StartOffset;
-        size_t m_Stride;
     public:
         ArrayView2D(const T* data, size_t startOffset, size_t stride)
             : m_Data((T*)data), m_StartOffset(startOffset), m_Stride(stride) { }
@@ -137,6 +133,10 @@ namespace PNG
         {
             return &m_Data[m_StartOffset + m_Stride * y];
         }
+    private:
+        T* m_Data;
+        size_t m_StartOffset;
+        size_t m_Stride;
     };
 
     inline size_t BitsToBytes(size_t bits) { return bits & 7 ? (bits >> 3) + 1 : bits >> 3; }

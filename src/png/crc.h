@@ -30,7 +30,7 @@ namespace PNG
         }
 
         uint32_t m_Table[256]{0};
-        const static CRC m_Instance;
+        static const CRC m_Instance;
     };
 }
 
