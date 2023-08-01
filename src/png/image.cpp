@@ -166,8 +166,8 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
         src.m_Width && src.m_Height))
         return;
     
-    double scaleX = src.m_Width / (double)m_Width;
-    double scaleY = src.m_Height / (double)m_Height;
+    double scaleX = (src.m_Width-1.0) / (m_Width-1.0);
+    double scaleY = (src.m_Height-1.0) / (m_Height-1.0);
     
     switch (scalingMethod) {
     case ScalingMethod::Nearest:
@@ -182,11 +182,11 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
     // https://en.wikipedia.org/wiki/Bilinear_interpolation
     case ScalingMethod::Bilinear:
         for (size_t y = 0; y < m_Height; y++) {
-            double cy = (y+0.25) * scaleY;
-            size_t srcy = (size_t)cy;
+            double cy = y * scaleY;
+            size_t srcy = std::floor(cy);
             for (size_t x = 0; x < m_Width; x++) {
-                double cx = (x+0.25) * scaleX;
-                size_t srcx = (size_t)cx;
+                double cx = x * scaleX;
+                size_t srcx = std::floor(cx);
 
                 const Color& col11 = src.At(srcx, srcy, 0, 0);
                 const Color& col21 = src.At(srcx, srcy, 1, 0);
