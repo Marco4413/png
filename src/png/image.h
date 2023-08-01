@@ -24,10 +24,14 @@ namespace PNG
         Image()
             : Image(0, 0) { }
 
-        Image(const Image& other);
-        Image(Image&& other);
+        ~Image() { delete[] m_Pixels; }
 
-        virtual ~Image() { delete[] m_Pixels; }
+        Image(const Image& other) { *this = other; }
+        Image(Image&& other) { *this = std::move(other); }
+
+        Image& operator=(const Image& other);
+        Image& operator=(Image&& other);
+
 
         void Resize(size_t width, size_t height, ScalingMethod scalingMethod = ScalingMethod::Nearest);
         void SetSize(size_t width, size_t height);

@@ -7,19 +7,23 @@
 #include <cmath>
 #include <thread>
 
-PNG::Image::Image(const Image& other)
-    : PNG::Image(other.m_Width, other.m_Height)
+PNG::Image& PNG::Image::operator=(const Image& other)
 {
-    if (other.m_Pixels)
+    SetSize(other.m_Width, other.m_Height);
+    if (m_Pixels)
         memcpy(m_Pixels, other.m_Pixels, m_Width * m_Height * sizeof(Color));
+    return *this;
 }
 
-PNG::Image::Image(Image&& other)
-    : m_Width(other.m_Width), m_Height(other.m_Height), m_Pixels(other.m_Pixels)
+PNG::Image& PNG::Image::operator=(Image&& other)
 {
+    m_Width = other.m_Width;
+    m_Height = other.m_Height;
+    m_Pixels = other.m_Pixels;
     other.m_Width = 0;
     other.m_Height = 0;
     other.m_Pixels = nullptr;
+    return *this;
 }
 
 void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scalingMethod)
@@ -244,9 +248,7 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
 
     // https://en.wikipedia.org/wiki/Floyd–Steinberg_dithering
     // Creating a copy of the image for error diffusion
-    std::vector<Color> _img(m_Width * m_Height);
-    memcpy(_img.data(), m_Pixels, _img.size() * sizeof(Color));
-    ArrayView2D<Color> img(_img.data(), 0, m_Width);
+    Image img(*this);
 
     std::vector<uint8_t> line(m_Width);
     for (size_t y = 0; y < m_Height; y++) {
