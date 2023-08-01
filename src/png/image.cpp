@@ -238,7 +238,7 @@ PNG::Result PNG::Image::WriteRawPixels(uint8_t colorType, size_t bitDepth, OStre
     return Result::OK;
 }
 
-PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette, size_t bitDepth, OStream& out) const
+PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette, size_t bitDepth, DitheringMethod ditheringMethod, OStream& out) const
 {
     if (!ColorType::IsValidBitDepth(ColorType::PALETTE, bitDepth))
         return Result::InvalidBitDepth;
@@ -248,13 +248,16 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
 
     // https://en.wikipedia.org/wiki/Floyd–Steinberg_dithering
     // Creating a copy of the image for error diffusion
-    Image img(*this);
+    Image errImg(0, 0);
+    if (ditheringMethod != DitheringMethod::None)
+        errImg = *this;
 
     std::vector<uint8_t> line(m_Width);
     for (size_t y = 0; y < m_Height; y++) {
         for (size_t x = 0; x < m_Width; x++) {
             // Clamping Color to remove error diffusion artifacts
-            const Color& color = img[y][x].Clamp();
+            const Color& color = ditheringMethod == DitheringMethod::None ?
+                (*this)[y][x] : errImg[y][x].Clamp();
 
             // Find closest palette color
             // Best Squared Distance
@@ -272,38 +275,68 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
             }
 
             line[x] = bestPaletteI;
+            // No need to apply error diffusion
+            if (ditheringMethod == DitheringMethod::None)
+                continue;
 
             // Apply error diffusion
             const Color& newColor = palette[bestPaletteI];
             Color quantError = color - newColor;
 
-#if 1 // Floyd Steinberg dithering
-            if (x + 1 < m_Width)
-                img[y][x+1] += quantError * (7.0 / 16);
-
-            if (y + 1 < m_Height) {
-                if (x > 1)
-                    img[y+1][x-1] += quantError * (3.0 / 16);
-                img[y+1][x] += quantError * (5.0 / 16);
+            switch (ditheringMethod) {
+            case DitheringMethod::Floyd:
                 if (x + 1 < m_Width)
-                    img[y+1][x+1] += quantError * (1.0 / 16);
+                    errImg[y][x+1] += quantError * (7.0 / 16);
+
+                if (y + 1 < m_Height) {
+                    if (x > 1)
+                        errImg[y+1][x-1] += quantError * (3.0 / 16);
+                    errImg[y+1][x] += quantError * (5.0 / 16);
+                    if (x + 1 < m_Width)
+                        errImg[y+1][x+1] += quantError * (1.0 / 16);
+                }
+                break;
+            case DitheringMethod::Atkinson:
+                if (x + 1 < m_Width) {
+                    errImg[y][x+1] += quantError * (1.0 / 8);
+                    if (x + 2 < m_Width)
+                        errImg[y][x+2] += quantError * (1.0 / 8);
+                }
+
+                if (y + 1 < m_Height) {
+                    if (x > 1)
+                        errImg[y+1][x-1] += quantError * (1.0 / 8);
+                    errImg[y+1][x] += quantError * (1.0 / 8);
+                    if (x + 1 < m_Width)
+                        errImg[y+1][x+1] += quantError * (1.0 / 8);
+
+                    if (y + 2 < m_Height)
+                        errImg[y+2][x] += quantError * (1.0 / 8);
+                }
+                break;
+            case DitheringMethod::None:
+                PNG_UNREACHABLE("PNG::Image::WriteDitheredRawPixels Early continue failed for None dithering method.");
+            default:
+                PNG_UNREACHABLEF("PNG::Image::WriteDitheredRawPixels case missing (%d).", (int)ditheringMethod);
             }
+#if 1 // Floyd Steinberg dithering
+
 #else // Atkinson dithering
             if (x + 1 < m_Width)
-                img[y][x+1] += quantError * (1.0 / 8);
+                (*img)[y][x+1] += quantError * (1.0 / 8);
             if (x + 2 < m_Width)
-                img[y][x+2] += quantError * (1.0 / 8);
+                (*img)[y][x+2] += quantError * (1.0 / 8);
 
             if (y + 1 < m_Height) {
                 if (x > 1)
-                    img[y+1][x-1] += quantError * (1.0 / 8);
-                img[y+1][x] += quantError * (1.0 / 8);
+                    (*img)[y+1][x-1] += quantError * (1.0 / 8);
+                (*img)[y+1][x] += quantError * (1.0 / 8);
                 if (x + 1 < m_Width)
-                    img[y+1][x+1] += quantError * (1.0 / 8);
+                    (*img)[y+1][x+1] += quantError * (1.0 / 8);
             }
 
             if (y + 2 < m_Height)
-                img[y+2][x] += quantError * (1.0 / 8);
+                (*img)[y+2][x] += quantError * (1.0 / 8);
 #endif
         }
 
@@ -552,8 +585,8 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
     return Result::OK;
 }
 
-PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth,
-    const std::vector<Color>* palette, CompressionLevel clevel, uint8_t interlaceMethod) const
+PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth, const std::vector<Color>* palette,
+    DitheringMethod ditheringMethod, CompressionLevel clevel, uint8_t interlaceMethod) const
 {
     if (colorType == ColorType::PALETTE && !palette)
         return Result::PaletteNotFound;
@@ -585,7 +618,7 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth,
     DynamicByteStream rawImage;
     if (ihdr.ColorType == ColorType::PALETTE) {
         PNG_ASSERT(palette, "PNG::Image::Write Early palette check failed.");
-        PNG_RETURN_IF_NOT_OK(WriteDitheredRawPixels, *palette, ihdr.BitDepth, rawImage);
+        PNG_RETURN_IF_NOT_OK(WriteDitheredRawPixels, *palette, ihdr.BitDepth, ditheringMethod, rawImage);
 
         chunk.Type = ChunkType::PLTE;
         chunk.Data.resize(palette->size() * 3);
@@ -646,8 +679,8 @@ PNG::Result PNG::Image::Write(OStream& out, uint8_t colorType, size_t bitDepth,
     return Result::OK;
 }
 
-PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth,
-    const std::vector<Color>* palette, CompressionLevel clevel, uint8_t interlaceMethod) const
+PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth, const std::vector<Color>* palette,
+    DitheringMethod ditheringMethod, CompressionLevel clevel, uint8_t interlaceMethod) const
 {
     if (colorType == ColorType::PALETTE && !palette)
         return Result::PaletteNotFound;
@@ -696,10 +729,10 @@ PNG::Result PNG::Image::WriteMT(OStream& out, uint8_t colorType, size_t bitDepth
 
     DynamicByteStream rawImage;
     Result rawReaderTRes;
-    std::thread rawReaderT([this, palette, &ihdr, &rawImage, &rawReaderTRes]() {
+    std::thread rawReaderT([this, palette, &ditheringMethod, &ihdr, &rawImage, &rawReaderTRes]() {
         if (ihdr.ColorType == ColorType::PALETTE) {
             PNG_ASSERT(palette, "PNG::Image::Write Early palette check failed.");
-            rawReaderTRes = WriteDitheredRawPixels(*palette, ihdr.BitDepth, rawImage);
+            rawReaderTRes = WriteDitheredRawPixels(*palette, ihdr.BitDepth, ditheringMethod, rawImage);
         } else rawReaderTRes = WriteRawPixels(ihdr.ColorType, ihdr.BitDepth, rawImage);
     });
 

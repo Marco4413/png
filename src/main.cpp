@@ -63,14 +63,14 @@ int main(int argc, char** argv)
     bench("Single Threaded Image Writing", [&img]() {
         std::ofstream file("out/out.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
-        ASSERT_OK(img.Write, outStream, PNG::ColorType::RGBA, 8, nullptr,
+        ASSERT_OK(img.Write, outStream, PNG::ColorType::RGBA, 8, nullptr, PNG::DitheringMethod::None,
             PNG::CompressionLevel::Default, PNG::InterlaceMethod::NONE);
     });
 
     bench("Multi Threaded Image Writing", [&img]() {
         std::ofstream file("out/out-mt.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
-        ASSERT_OK(img.WriteMT, outStream, PNG::ColorType::RGBA, 8, nullptr,
+        ASSERT_OK(img.WriteMT, outStream, PNG::ColorType::RGBA, 8, nullptr, PNG::DitheringMethod::None,
             PNG::CompressionLevel::Default, PNG::InterlaceMethod::NONE);
     });
 

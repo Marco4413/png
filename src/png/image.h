@@ -16,6 +16,11 @@ namespace PNG
         Nearest, Bilinear,
     };
 
+    enum class DitheringMethod
+    {
+        None, Floyd, Atkinson
+    };
+
     class Image
     {
     public:
@@ -62,13 +67,15 @@ namespace PNG
         }
         
         Result WriteRawPixels(uint8_t colorType, size_t bitDepth, OStream& out) const;
-        Result WriteDitheredRawPixels(const std::vector<Color>& palette, size_t bitDepth, OStream& out) const;
+        Result WriteDitheredRawPixels(const std::vector<Color>& palette, size_t bitDepth, DitheringMethod ditheringMethod, OStream& out) const;
         Result LoadRawPixels(uint8_t colorType, size_t bitDepth, const std::vector<Color>* palette, const std::vector<uint8_t>& in);
 
         Result Write(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8, const std::vector<Color>* palette = nullptr,
-            CompressionLevel clevel = CompressionLevel::Default, uint8_t interlaceMethod = InterlaceMethod::NONE) const;
+            DitheringMethod ditheringMethod = DitheringMethod::None, CompressionLevel clevel = CompressionLevel::Default,
+            uint8_t interlaceMethod = InterlaceMethod::NONE) const;
         Result WriteMT(OStream& out, uint8_t colorType = ColorType::RGBA, size_t bitDepth = 8, const std::vector<Color>* palette = nullptr,
-            CompressionLevel clevel = CompressionLevel::Default, uint8_t interlaceMethod = InterlaceMethod::NONE) const;
+            DitheringMethod ditheringMethod = DitheringMethod::None, CompressionLevel clevel = CompressionLevel::Default,
+            uint8_t interlaceMethod = InterlaceMethod::NONE) const;
         
         static Result Read(IStream& in, Image& out);
         static Result ReadMT(IStream& in, Image& out);
