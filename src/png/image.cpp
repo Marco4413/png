@@ -88,14 +88,15 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
                 double cx = x * scaleX;
                 size_t srcx = std::floor(cx);
 
-                const Color& col11 = src.At(srcx, srcy, 0, 0);
-                const Color& col21 = src.At(srcx, srcy, 1, 0);
-                const Color& col12 = src.At(srcx, srcy, 0, 1);
-                const Color& col22 = src.At(srcx, srcy, 1, 1);
+                const Color* col11 = src.At(srcx, srcy, 0, 0);
+                PNG_ASSERTF(col11, "PNG::Image::Resize Color at (%ld, %ld) is null.", srcx, srcy);
+                const Color* col21 = src.At(srcx, srcy, 1, 0, col11);
+                const Color* col12 = src.At(srcx, srcy, 0, 1, col11);
+                const Color* col22 = src.At(srcx, srcy, 1, 1, col11);
                 
-                Color colY1 = Lerp(cx-srcx, col11, col21);
-                Color colY2 = Lerp(cx-srcx, col12, col22);
-                dst[y][x]   = Lerp(cy-srcy, colY1, colY2);
+                Color colY1 = Lerp(cx-srcx, *col11, *col21);
+                Color colY2 = Lerp(cx-srcx, *col12, *col22);
+                dst[y][x]   = Lerp(cy-srcy,  colY1,  colY2);
                 dst[y][x].Clamp();
             }
         }
