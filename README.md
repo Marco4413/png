@@ -9,10 +9,10 @@ This project was made for educational purposes and may be discontinued at any ti
 
 **Building is only supported on Linux.** (you can use WSL if you are on Windows)
 
-To download libraries you should run the script file `setup.sh` which is located in the `libs` directory
+To download and install external libraries you should run the script file `setup.sh` which is located in the `libs` directory
 (THE WORKING DIR MUST BE THE `libs` FOLDER).
 
-Running `setup.sh` requires `git` to be installed.
+Running `setup.sh` requires `git`, `cmake` and `make` to be installed.
 
 ```sh
 $ cd libs
@@ -20,8 +20,7 @@ $ ./setup.sh
 $ cd ..
 ```
 
-To actually build the project you should run the `build.sh` script, have the `zlib1g-dev` and `zlib1g` apt packages and the `g++` compiler
-installed.
+To actually build the project you should run the `build.sh` script and have the `g++` compiler installed.
 
 The executable will be found at `out/main`.
 

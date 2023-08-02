@@ -9,7 +9,7 @@ fi
 DIST=$(echo "$1" | tr '[:lower:]' '[:upper:]')
 DFLAGS=''
 
-SRC=$(find src -type f -name *.cpp)
+PNG_SRC=$(find src/png -type f -name *.cpp)
 
 case "$DIST" in
     'DBG')
@@ -25,6 +25,6 @@ case "$DIST" in
     ;;
 esac
 
-CFLAGS="-std=c++2a -Wall -Wextra -Isrc -Ilibs -lz -lpthread $DFLAGS"
+CFLAGS="-std=c++2a -Wall -Wextra -Isrc -Ilibs/include -Llibs -lz -lpthread $DFLAGS"
 
-g++ -o out/main $SRC $CFLAGS
+g++ -o out/main src/main.cpp $PNG_SRC $CFLAGS
