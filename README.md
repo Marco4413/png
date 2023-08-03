@@ -28,6 +28,15 @@ The executable will be found at `out/main`.
 $ ./build.sh
 ```
 
+#### Building as a static library
+
+Running `build.sh` with `static` as its first argument will build this project as a static library.
+The static library file can be found at `libpng.a` and include files are inside the `include` directory.
+
+```sh
+$ ./build.sh static
+```
+
 ### TODO
 
 1. ~~Splitting the project into multiple files~~
