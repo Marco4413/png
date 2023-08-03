@@ -47,6 +47,10 @@ namespace PNG
         uint8_t CompressionMethod;
         uint8_t FilterMethod;
         uint8_t InterlaceMethod;
+
+        IHDRChunk() = default;
+        IHDRChunk(const IHDRChunk&) = default;
+        IHDRChunk& operator=(const IHDRChunk&) = default;
     
         static Result Parse(const Chunk& chunk, IHDRChunk& ihdr);
         Result Write(Chunk& chunk) const;
