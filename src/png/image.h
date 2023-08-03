@@ -4,6 +4,7 @@
 #define _PNG_IMAGE_H
 
 #include "png/base.h"
+#include "png/chunk.h"
 #include "png/color.h"
 #include "png/compression.h"
 #include "png/interlace.h"
@@ -88,8 +89,8 @@ namespace PNG
         Result Write(OStream& out, const ExportSettings& cfg = ExportSettings{}) const;
         Result WriteMT(OStream& out, const ExportSettings& cfg = ExportSettings{}) const;
         
-        static Result Read(IStream& in, Image& out);
-        static Result ReadMT(IStream& in, Image& out);
+        static Result Read(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr);
+        static Result ReadMT(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr);
 
     private:
         size_t m_Width = 0;

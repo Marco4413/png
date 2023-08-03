@@ -378,7 +378,7 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
     return Result::OK;
 }
 
-PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
+PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
 {
     uint8_t sig[PNG_SIGNATURE_LEN];
     PNG_RETURN_IF_NOT_OK(in.ReadBuffer, sig, PNG_SIGNATURE_LEN);
@@ -471,10 +471,13 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out)
     out.SetSize(ihdr.Width, ihdr.Height);
     PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, &palette, rawPixels);
 
+    if (ihdrOut)
+        *ihdrOut = ihdr;
+
     return Result::OK;
 }
 
-PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
+PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
 {
     uint8_t sig[PNG_SIGNATURE_LEN];
     PNG_RETURN_IF_NOT_OK(in.ReadBuffer, sig, PNG_SIGNATURE_LEN);
@@ -612,6 +615,9 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out)
     PNG_LDEBUG("Loading raw pixels into Image.");
     out.SetSize(ihdr.Width, ihdr.Height);
     PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, &palette, rawPixels);
+
+    if (ihdrOut)
+        *ihdrOut = ihdr;
 
     return Result::OK;
 }
