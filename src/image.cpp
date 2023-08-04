@@ -47,6 +47,8 @@ PNG::Image& PNG::Image::operator=(const Image& other)
 
 PNG::Image& PNG::Image::operator=(Image&& other)
 {
+    if (m_Pixels)
+        delete[] m_Pixels;
     m_Width = other.m_Width;
     m_Height = other.m_Height;
     m_Pixels = other.m_Pixels;
