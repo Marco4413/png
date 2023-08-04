@@ -58,6 +58,19 @@ PNG::Image& PNG::Image::operator=(Image&& other)
     return *this;
 }
 
+void PNG::Image::Crop(size_t left, size_t top, size_t right, size_t bottom)
+{
+    if (left + right >= m_Width || top + bottom >= m_Height) {
+        SetSize(0, 0);
+        return;
+    }
+
+    Image cropped(m_Width - (left + right), m_Height - (top + bottom));
+    for (size_t y = 0; y < cropped.m_Height; y++)
+        memcpy(cropped[y], &(*this)[y+top][left], cropped.m_Width * sizeof(Color));
+    *this = std::move(cropped);
+}
+
 void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scalingMethod)
 {
     Image src(std::move(*this));

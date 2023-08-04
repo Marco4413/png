@@ -54,6 +54,7 @@ namespace PNG
         Image& operator=(const Image& other);
         Image& operator=(Image&& other);
 
+        void Crop(size_t left, size_t top, size_t right, size_t bottom);
         void Resize(size_t width, size_t height, ScalingMethod scalingMethod = ScalingMethod::Nearest);
         void SetSize(size_t width, size_t height);
         inline void Clear() { SetSize(0, 0); }
