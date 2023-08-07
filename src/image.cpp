@@ -14,8 +14,8 @@ PNG::Result PNG::ExportSettings::Validate() const
     if (ColorType == ColorType::PALETTE) {
         if (!Palette)
             return Result::PaletteNotFound;
-        size_t maxPaletteSize = (1 << BitDepth) - 1;
-        if (Palette->size() >= maxPaletteSize)
+        size_t maxPaletteSize = (1 << BitDepth);
+        if (Palette->size() > maxPaletteSize)
             return Result::InvalidPaletteSize;
     }
     
