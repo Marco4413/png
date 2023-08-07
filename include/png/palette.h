@@ -64,6 +64,12 @@ namespace PNG
             Color(0.0, 1.0, 0.8), Color(0.2, 1.0, 0.8),
             Color(0.0, 1.0, 1.0), Color(0.2, 1.0, 1.0), Color(0.4, 1.0, 1.0), Color(1.0, 1.0, 1.0),
         };
+
+        const size_t GRAY2_BIT_DEPTH = 1;
+        const std::vector<Color> GRAY2 { Color(0.0), Color(1.0), };
+
+        const size_t GRAY4_BIT_DEPTH = 2;
+        const std::vector<Color> GRAY4 { Color(0.0), Color(1/3.0), Color(2/3.0), Color(1.0), };
     }
 }
 
