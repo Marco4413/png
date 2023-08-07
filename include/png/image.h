@@ -56,6 +56,8 @@ namespace PNG
 
         void Crop(size_t left, size_t top, size_t right, size_t bottom);
         void Resize(size_t width, size_t height, ScalingMethod scalingMethod = ScalingMethod::Nearest);
+        void ApplyDithering(const std::vector<Color>& palette, DitheringMethod ditheringMethod);
+
         void SetSize(size_t width, size_t height);
         inline void Clear() { SetSize(0, 0); }
 

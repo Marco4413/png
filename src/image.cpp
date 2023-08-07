@@ -6,6 +6,38 @@
 #include <cmath>
 #include <thread>
 
+// This is a macro since both Image::ApplyDithering and Image::WriteDitheredRawPixels need it
+// https://en.wikipedia.org/wiki/Floyd–Steinberg_dithering
+// https://en.wikipedia.org/wiki/Atkinson_dithering
+#define PNG_FILL_DITHERING_CASES(img, qError) \
+    case DitheringMethod::Floyd: \
+        if (x + 1 < (img).GetWidth()) \
+            (img)[y][x+1] += (qError) * (7.0 / 16); \
+        if (y + 1 < (img).GetHeight()) { \
+            if (x > 1) \
+                (img)[y+1][x-1] += (qError) * (3.0 / 16); \
+            (img)[y+1][x] += (qError) * (5.0 / 16); \
+            if (x + 1 < (img).GetWidth()) \
+                (img)[y+1][x+1] += (qError) * (1.0 / 16); \
+        } \
+        break; \
+    case DitheringMethod::Atkinson: \
+        if (x + 1 < (img).GetWidth()) { \
+            (img)[y][x+1] += (qError) * (1.0 / 8); \
+            if (x + 2 < (img).GetWidth()) \
+                (img)[y][x+2] += (qError) * (1.0 / 8); \
+        } \
+        if (y + 1 < (img).GetHeight()) { \
+            if (x > 1) \
+                (img)[y+1][x-1] += (qError) * (1.0 / 8); \
+            (img)[y+1][x] += (qError) * (1.0 / 8); \
+            if (x + 1 < (img).GetWidth()) \
+                (img)[y+1][x+1] += (qError) * (1.0 / 8); \
+            if (y + 2 < (img).GetHeight()) \
+                (img)[y+2][x] += (qError) * (1.0 / 8); \
+        } \
+        break;
+
 PNG::Result PNG::ExportSettings::Validate() const
 {
     if (IDATSize == 0)
@@ -118,6 +150,37 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
         break;
     default:
         PNG_UNREACHABLEF("PNG::Image::Resize case missing (%d).", (int)scalingMethod);
+    }
+}
+
+void PNG::Image::ApplyDithering(const std::vector<Color>& palette, DitheringMethod ditheringMethod)
+{
+    for (size_t y = 0; y < m_Height; y++) {
+        for (size_t x = 0; x < m_Width; x++) {
+            // Clamping Color to remove error diffusion artifacts
+            // This can't be a const& because of the assignment below
+            const Color color = (*this)[y][x].Clamp();
+
+            // Find closest palette color
+            const Color& newColor = palette[FindClosestPaletteColor(color, palette)];
+
+            (*this)[y][x] = newColor; // This changes `color` if it's a const&
+            // No need to apply error diffusion
+            if (ditheringMethod == DitheringMethod::None)
+                continue;
+
+            // Apply error diffusion
+            Color quantError = color - newColor;
+
+            switch (ditheringMethod) {
+            // We do a little bit of macro magic.
+            PNG_FILL_DITHERING_CASES(*this, quantError);
+            case DitheringMethod::None:
+                PNG_UNREACHABLE("PNG::Image::ApplyDithering Early continue failed for None dithering method.");
+            default:
+                PNG_UNREACHABLEF("PNG::Image::ApplyDithering case missing (%d).", (int)ditheringMethod);
+            }
+        }
     }
 }
 
@@ -292,7 +355,6 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
         return Result::InvalidPaletteSize;
     PNG_ASSERTF(bitDepth <= 8, "PNG::Image::WriteDitheredRawPixels Illegal bit depth %ld.", bitDepth);
 
-    // https://en.wikipedia.org/wiki/Floyd–Steinberg_dithering
     // Creating a copy of the image for error diffusion
     Image errImg(0, 0);
     if (ditheringMethod != DitheringMethod::None)
@@ -306,19 +368,7 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
                 (*this)[y][x] : errImg[y][x].Clamp();
 
             // Find closest palette color
-            // Best Squared Distance
-            float bestDSq = std::numeric_limits<float>::max();
-            size_t bestPaletteI = 0;
-
-            for (size_t i = 0; i < palette.size(); i++) {
-                const Color& pColor = palette[i];
-                Color dColor = color - pColor;
-                float dSq = dColor.R * dColor.R + dColor.G * dColor.G + dColor.B * dColor.B;
-                if (dSq < bestDSq) {
-                    bestDSq = dSq;
-                    bestPaletteI = i;
-                }
-            }
+            size_t bestPaletteI = FindClosestPaletteColor(color, palette);
 
             line[x] = bestPaletteI;
             // No need to apply error diffusion
@@ -330,60 +380,13 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
             Color quantError = color - newColor;
 
             switch (ditheringMethod) {
-            case DitheringMethod::Floyd:
-                if (x + 1 < m_Width)
-                    errImg[y][x+1] += quantError * (7.0 / 16);
-
-                if (y + 1 < m_Height) {
-                    if (x > 1)
-                        errImg[y+1][x-1] += quantError * (3.0 / 16);
-                    errImg[y+1][x] += quantError * (5.0 / 16);
-                    if (x + 1 < m_Width)
-                        errImg[y+1][x+1] += quantError * (1.0 / 16);
-                }
-                break;
-            case DitheringMethod::Atkinson:
-                if (x + 1 < m_Width) {
-                    errImg[y][x+1] += quantError * (1.0 / 8);
-                    if (x + 2 < m_Width)
-                        errImg[y][x+2] += quantError * (1.0 / 8);
-                }
-
-                if (y + 1 < m_Height) {
-                    if (x > 1)
-                        errImg[y+1][x-1] += quantError * (1.0 / 8);
-                    errImg[y+1][x] += quantError * (1.0 / 8);
-                    if (x + 1 < m_Width)
-                        errImg[y+1][x+1] += quantError * (1.0 / 8);
-
-                    if (y + 2 < m_Height)
-                        errImg[y+2][x] += quantError * (1.0 / 8);
-                }
-                break;
+            // We do a little more bits of macro magic.
+            PNG_FILL_DITHERING_CASES(errImg, quantError);
             case DitheringMethod::None:
                 PNG_UNREACHABLE("PNG::Image::WriteDitheredRawPixels Early continue failed for None dithering method.");
             default:
                 PNG_UNREACHABLEF("PNG::Image::WriteDitheredRawPixels case missing (%d).", (int)ditheringMethod);
             }
-#if 1 // Floyd Steinberg dithering
-
-#else // Atkinson dithering
-            if (x + 1 < m_Width)
-                (*img)[y][x+1] += quantError * (1.0 / 8);
-            if (x + 2 < m_Width)
-                (*img)[y][x+2] += quantError * (1.0 / 8);
-
-            if (y + 1 < m_Height) {
-                if (x > 1)
-                    (*img)[y+1][x-1] += quantError * (1.0 / 8);
-                (*img)[y+1][x] += quantError * (1.0 / 8);
-                if (x + 1 < m_Width)
-                    (*img)[y+1][x+1] += quantError * (1.0 / 8);
-            }
-
-            if (y + 2 < m_Height)
-                (*img)[y+2][x] += quantError * (1.0 / 8);
-#endif
         }
 
         PNG_RETURN_IF_NOT_OK(out.WriteVector, line);
