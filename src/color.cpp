@@ -135,3 +135,22 @@ PNG::Color PNG::Color::operator/(float n) const
         R / n, G / n, B / n, A / n
     ));
 }
+
+size_t PNG::FindClosestPaletteColor(const Color& color, const std::vector<Color>& palette)
+{
+    PNG_ASSERT(palette.size() > 0, "PNG::FindClosestPaletteColor Palette size is 0.");
+    float bestDSq = std::numeric_limits<float>::max();
+    size_t bestPaletteI = 0;
+
+    for (size_t i = 0; i < palette.size(); i++) {
+        const Color& pColor = palette[i];
+        Color dColor = color - pColor;
+        float dSq = dColor.R * dColor.R + dColor.G * dColor.G + dColor.B * dColor.B;
+        if (dSq < bestDSq) {
+            bestDSq = dSq;
+            bestPaletteI = i;
+        }
+    }
+
+    return bestPaletteI;
+}

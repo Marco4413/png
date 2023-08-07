@@ -41,7 +41,7 @@ namespace PNG
 
         Color()
             : Color(0.0f) { }
-        
+
         Color& Clamp();
         
         Color& operator+=(const Color& other);
@@ -57,6 +57,8 @@ namespace PNG
         Color& operator/=(float n);
         Color operator/(float n) const;
     };
+
+    size_t FindClosestPaletteColor(const Color& color, const std::vector<Color>& palette);
 }
 
 #endif // _PNG_COLOR_H
