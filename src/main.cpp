@@ -9,8 +9,8 @@
         auto pngcode = (func)(__VA_ARGS__); \
         bool pngok = pngcode == PNG::Result::OK; \
         if (!pngok) { \
-            printf("%s:%d: Assert (pngok) failed: %s -> %s\n", __FILE__, __LINE__, #func, PNG::ResultToString(pngcode)); \
-            exit(1); \
+            fmt::print(fmt::fg(fmt::color::red), "{}:{}: Assert (pngok) failed: {} -> {}\n", __FILE__, __LINE__, #func, PNG::ResultToString(pngcode)); \
+            std::exit(1); \
         } \
     } while (0)
 
@@ -28,9 +28,9 @@ void bench(const char* name, const std::function<void()>& fun, size_t samples = 
     }
 
     if (samples == 1)
-        printf("%s took %ldus.\n", name, totalTime);
+        fmt::print(fmt::fg(fmt::color::yellow), "{} took {}us.\n", name, totalTime);
     else
-        printf("%s took an average of %ldus on %ld samples.\n", name, totalTime / samples, samples);
+        fmt::print(fmt::fg(fmt::color::yellow), "{} took an average of {}us on {} samples.\n", name, totalTime / samples, samples);
 }
 
 int main(int argc, char** argv)
@@ -40,7 +40,7 @@ int main(int argc, char** argv)
     assert(*argv++ != NULL);
     const char* filePath = *argv++;
     if (filePath == NULL) {
-        printf("Please specify a file to open.\n");
+        fmt::println("Please specify a file to open.");
         return 1;
     }
 
@@ -71,13 +71,13 @@ int main(int argc, char** argv)
     };
 
     bench("Single Threaded Image Writing", [&img, &exportSettings]() {
-        std::ofstream file("out/out.png", std::ios::binary);
+        std::ofstream file("out.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
         ASSERT_OK(img.Write, outStream, exportSettings);
     });
 
     bench("Multi Threaded Image Writing", [&img, &exportSettings]() {
-        std::ofstream file("out/out-mt.png", std::ios::binary);
+        std::ofstream file("out-mt.png", std::ios::binary);
         PNG::OStreamWrapper outStream(file);
         ASSERT_OK(img.WriteMT, outStream, exportSettings);
     });
@@ -119,11 +119,11 @@ int main(int argc, char** argv)
     size_t y = img.GetHeight() / 2;
     const auto& pixel = img[y][x];
     
-    printf("Pixel at %ld, %ld\n", x, y);
-    printf("  R: %ld\n", (size_t)(pixel.R*255));
-    printf("  G: %ld\n", (size_t)(pixel.G*255));
-    printf("  B: %ld\n", (size_t)(pixel.B*255));
-    printf("  A: %ld\n", (size_t)(pixel.A*255));
+    fmt::println("Pixel at {}, {}", x, y);
+    fmt::println("  R: {}", (size_t)(pixel.R*255));
+    fmt::println("  G: {}", (size_t)(pixel.G*255));
+    fmt::println("  B: {}", (size_t)(pixel.B*255));
+    fmt::println("  A: {}", (size_t)(pixel.A*255));
 
     return 0;
 }
