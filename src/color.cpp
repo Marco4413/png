@@ -77,12 +77,12 @@ PNG::Color& PNG::Color::operator+=(const Color& other)
 
 PNG::Color PNG::Color::operator+(const Color& other) const
 {
-    return std::move(Color(
+    return Color(
         R + other.R,
         G + other.G,
         B + other.B,
         A + other.A
-    ));
+    );
 }
 
 PNG::Color& PNG::Color::operator-=(const Color& other)
@@ -96,12 +96,12 @@ PNG::Color& PNG::Color::operator-=(const Color& other)
 
 PNG::Color PNG::Color::operator-(const Color& other) const
 {
-    return std::move(Color(
+    return Color(
         R - other.R,
         G - other.G,
         B - other.B,
         A - other.A
-    ));
+    );
 }
 
 PNG::Color& PNG::Color::operator*=(float n)
@@ -115,9 +115,7 @@ PNG::Color& PNG::Color::operator*=(float n)
 
 PNG::Color PNG::Color::operator*(float n) const
 {
-    return std::move(PNG::Color(
-        R * n, G * n, B * n, A * n
-    ));
+    return Color(R * n, G * n, B * n, A * n);
 }
 
 PNG::Color& PNG::Color::operator/=(float n)
@@ -131,9 +129,7 @@ PNG::Color& PNG::Color::operator/=(float n)
 
 PNG::Color PNG::Color::operator/(float n) const
 {
-    return std::move(Color(
-        R / n, G / n, B / n, A / n
-    ));
+    return Color(R / n, G / n, B / n, A / n);
 }
 
 size_t PNG::FindClosestPaletteColor(const Color& color, const std::vector<Color>& palette)
