@@ -38,10 +38,10 @@
     } while (0)
 
 #define PNG_LDEBUG(msg) \
-    fmt::print(stdout, fmt::fg(fmt::color::blue), "{}:{}: Debug: {}\n", __FILE__, __LINE__, msg)
+    fmt::print(stdout, fmt::fg(fmt::color::light_blue), "{}:{}: Debug: {}\n", __FILE__, __LINE__, msg)
 
 #define PNG_LDEBUGF(sfmt, ...) \
-    fmt::print(stdout, fmt::fg(fmt::color::blue), "{}:{}: Debug: {}\n", __FILE__, __LINE__, \
+    fmt::print(stdout, fmt::fg(fmt::color::light_blue), "{}:{}: Debug: {}\n", __FILE__, __LINE__, \
         fmt::format(sfmt, __VA_ARGS__ )); \
 
 #else // PNG_DEBUG
