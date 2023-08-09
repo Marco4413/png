@@ -11,6 +11,7 @@
 #include "png/filter.h"
 #include "png/image.h"
 #include "png/interlace.h"
+#include "png/kernel.h"
 #include "png/palette.h"
 #include "png/stream.h"
 
