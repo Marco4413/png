@@ -1,12 +1,17 @@
+term.pushColor(term.yellow)
+print("WARNING: IF YOU SEE THIS MESSAGE AND YOU ARE TRYING TO INCLUDE THE PNG PROJECT, YOU ARE ACTUALLY INCLUDING THE WORKSPACE FILE.")
+print("      -> If so, make sure to include the png folder instead.")
+term.popColor()
+
 workspace "png"
    architecture "x64"
    configurations { "Debug", "Release", }
    startproject "png-dev"
 
-include "libs/fmt"
-include "libs/zlib"
+include "png"
 
-local function CommonProjectSetup()
+project "png-dev"
+   kind "ConsoleApp"
    language "C++"
    cppdialect "C++20"
 
@@ -16,7 +21,7 @@ local function CommonProjectSetup()
    includedirs { "libs/fmt/include", "libs/zlib/include", }
    links { "fmt", "zlib", }
    
-   includedirs { "include", "libs/include", }
+   includedirs "include"
    files { "src/**.cpp", "include/**.h", }
 
    filter "toolset:gcc"
@@ -34,16 +39,3 @@ local function CommonProjectSetup()
 
    filter "configurations:Release"
       optimize "Speed"
-   
-   filter {}
-end
-
-project "png"
-   kind "StaticLib"
-   CommonProjectSetup()
-   removefiles "src/main.cpp"
-
-project "png-dev"
-   kind "ConsoleApp"
-   CommonProjectSetup()
-
