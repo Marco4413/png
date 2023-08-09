@@ -111,10 +111,13 @@ namespace PNG
         inline const Color* GetPixels() const { return m_Pixels; }
         inline Color* GetPixels() { return m_Pixels; }
 
+        ConstImageRowView GetRow(size_t y, int64_t dy = 0, WrapMode wrapMode = WrapMode::None) const;
+        ImageRowView GetRow(size_t y, int64_t dy = 0, WrapMode wrapMode = WrapMode::None);
+
         inline const Color* operator[](size_t y) const { return &m_Pixels[y * m_Width]; }
         inline Color* operator[](size_t y) { return &m_Pixels[y * m_Width]; }
 
-        inline const Color* At(size_t x, size_t y, int dx = 0, int dy = 0, const Color* fallback = nullptr) const
+        inline const Color* At(size_t x, size_t y, int64_t dx = 0, int64_t dy = 0, const Color* fallback = nullptr) const
         {
             // Check if (x+dx, y+dy) is out of bounds, if true return fallback, otherwise get the color at that pos
             const bool isInBounds = ((dy >= 0 && y + dy < m_Height) || y >= (size_t)-dy) &&
@@ -122,11 +125,10 @@ namespace PNG
             return isInBounds ? &(*this)[y+dy][x+dx] : fallback;
         }
 
-        inline Color* At(size_t x, size_t y, int dx = 0, int dy = 0, Color* fallback = nullptr)
+        inline Color* At(size_t x, size_t y, int64_t dx = 0, int64_t dy = 0, Color* fallback = nullptr)
         {
-            const bool isInBounds = ((dy >= 0 && y + dy < m_Height) || y >= (size_t)-dy) &&
-                ((dx >= 0 && x + dx < m_Width) || x >= (size_t)-dx);
-            return isInBounds ? &(*this)[y+dy][x+dx] : fallback;
+            // This doesn't feel right...
+            return const_cast<Color*>(static_cast<const Image*>(this)->At(x, y, dx, dy, fallback));
         }
         
         Result WriteRawPixels(uint8_t colorType, size_t bitDepth, OStream& out) const;
