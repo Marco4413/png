@@ -1,4 +1,5 @@
 workspace "png"
+   architecture "x64"
    configurations { "Debug", "Release", }
    startproject "png-dev"
 
