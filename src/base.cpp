@@ -56,6 +56,6 @@ const char* PNG::ResultToString(Result res)
     case Result::ZLib_DataError:
         return "ZLib_DataError";
     default:
-        PNG_UNREACHABLEF("PNG::ResultToString case missing (%d).", (int)res);
+        PNG_UNREACHABLEF("PNG::ResultToString case missing ({}).", (int)res);
     }
 }

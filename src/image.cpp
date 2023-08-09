@@ -57,7 +57,7 @@
                 return ImageViewClass((*this)[m_Height - 1 - bottomOffset], m_Width, wrapMode); \
             } \
             default: \
-                PNG_UNREACHABLEF("PNG_IMAGE_GET_ROW WrapMode case missing (%d) when out of bounds top.", (int)wrapMode); \
+                PNG_UNREACHABLEF("PNG_IMAGE_GET_ROW WrapMode case missing ({}) when out of bounds top.", (int)wrapMode); \
             } \
         } else if (y + dy >= m_Height) { \
             /* Out of bounds bottom */ \
@@ -69,7 +69,7 @@
             case WrapMode::Repeat: \
                 return ImageViewClass((*this)[(y+dy) % m_Height], m_Width, wrapMode); \
             default: \
-                PNG_UNREACHABLEF("PNG_IMAGE_GET_ROW WrapMode case missing (%d) when out of bounds bottom.", (int)wrapMode); \
+                PNG_UNREACHABLEF("PNG_IMAGE_GET_ROW WrapMode case missing ({}) when out of bounds bottom.", (int)wrapMode); \
             } \
         } \
         return ImageViewClass((*this)[y+dy], m_Width, wrapMode); \
@@ -91,7 +91,7 @@
                 return &Data[Width - 1 - rightOffset]; \
             } \
             default: \
-                PNG_UNREACHABLEF("PNG_IMAGE_VIEW_AT WrapMode case missing (%d) when out of bounds left.", (int)WrapMode); \
+                PNG_UNREACHABLEF("PNG_IMAGE_VIEW_AT WrapMode case missing ({}) when out of bounds left.", (int)WrapMode); \
             } \
         } else if (x + dx > Width) { \
             /* Out of bounds right */ \
@@ -103,7 +103,7 @@
             case PNG::WrapMode::Repeat: \
                 return &Data[(x+dx) % Width]; \
             default: \
-                PNG_UNREACHABLEF("PNG_IMAGE_VIEW_AT WrapMode case missing (%d) when out of bounds right.", (int)WrapMode); \
+                PNG_UNREACHABLEF("PNG_IMAGE_VIEW_AT WrapMode case missing ({}) when out of bounds right.", (int)WrapMode); \
             } \
         } \
         return &Data[x+dx]; \
@@ -225,7 +225,7 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
         }
         break;
     default:
-        PNG_UNREACHABLEF("PNG::Image::Resize case missing (%d).", (int)scalingMethod);
+        PNG_UNREACHABLEF("PNG::Image::Resize case missing ({}).", (int)scalingMethod);
     }
 }
 
@@ -282,7 +282,7 @@ void PNG::Image::ApplyDithering(const std::vector<Color>& palette, DitheringMeth
             case DitheringMethod::None:
                 PNG_UNREACHABLE("PNG::Image::ApplyDithering Early continue failed for None dithering method.");
             default:
-                PNG_UNREACHABLEF("PNG::Image::ApplyDithering case missing (%d).", (int)ditheringMethod);
+                PNG_UNREACHABLEF("PNG::Image::ApplyDithering case missing ({}).", (int)ditheringMethod);
             }
         }
     }
@@ -414,7 +414,7 @@ PNG::Result PNG::Image::LoadRawPixels(uint8_t colorType, size_t bitDepth, const 
         case ColorType::PALETTE: {
             size_t paletteIndex = rawColor[0];
             if (paletteIndex >= palette->size()) {
-                PNG_LDEBUGF("PNG::Image::LoadRawPixels palette index %ld is out of bounds (>= %ld).", paletteIndex, palette->size());
+                PNG_LDEBUGF("PNG::Image::LoadRawPixels palette index {} is out of bounds (>= {}).", paletteIndex, palette->size());
                 return Result::InvalidPaletteIndex;
             }
             color = (*palette)[paletteIndex];
@@ -543,7 +543,7 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
             case DitheringMethod::None:
                 PNG_UNREACHABLE("PNG::Image::WriteDitheredRawPixels Early continue failed for None dithering method.");
             default:
-                PNG_UNREACHABLEF("PNG::Image::WriteDitheredRawPixels case missing (%d).", (int)ditheringMethod);
+                PNG_UNREACHABLEF("PNG::Image::WriteDitheredRawPixels case missing ({}).", (int)ditheringMethod);
             }
         }
 
@@ -567,7 +567,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
     PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
     PNG_RETURN_IF_NOT_OK(IHDRChunk::Parse, chunk, ihdr);
 
-    PNG_LDEBUGF("PNG::Image::Read Reading image %dx%d (bd=%d,ct=%d,cm=%d,fm=%d,im=%d).",
+    PNG_LDEBUGF("PNG::Image::Read Reading image {}x{} (bd={},ct={},cm={},fm={},im={}).",
         ihdr.Width, ihdr.Height, ihdr.BitDepth, ihdr.ColorType,
         ihdr.CompressionMethod, ihdr.FilterMethod, ihdr.InterlaceMethod);
 
@@ -623,7 +623,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
         case ChunkType::IEND:
             break;
         default:
-            PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk %.*s (0x%x).", (int)sizeof(chunk.Type), (char*)&chunk.Type, chunk.Type);
+            PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk {:.{}} (0x{:x}).", (char*)&chunk.Type, (int)sizeof(chunk.Type), chunk.Type);
             if (!isAux)
                 return Result::UnknownNecessaryChunk;
         }
@@ -639,7 +639,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
     std::vector<uint8_t> rawPixels;
 
     size_t samples = ColorType::GetSamples(ihdr.ColorType);
-    PNG_ASSERT(samples > 0, "Sample count is 0.");
+    PNG_ASSERT(samples > 0, "PNG::Image::Read Sample count is 0.");
 
     PNG_RETURN_IF_NOT_OK(DeinterlacePixels, ihdr.InterlaceMethod, ihdr.FilterMethod,
         ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, intPixels, rawPixels);
@@ -666,7 +666,7 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
     PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
     PNG_RETURN_IF_NOT_OK(IHDRChunk::Parse, chunk, ihdr);
 
-    PNG_LDEBUGF("PNG::Image::Read Reading image %dx%d (bd=%d,ct=%d,cm=%d,fm=%d,im=%d).",
+    PNG_LDEBUGF("PNG::Image::ReadMT Reading image {}x{} (bd={},ct={},cm={},fm={},im={}).",
         ihdr.Width, ihdr.Height, ihdr.BitDepth, ihdr.ColorType,
         ihdr.CompressionMethod, ihdr.FilterMethod, ihdr.InterlaceMethod);
 
@@ -742,7 +742,7 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
             case ChunkType::IEND:
                 break;
             default:
-                PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk %.*s (0x%x).", (int)sizeof(chunk.Type), (char*)&chunk.Type, chunk.Type);
+                PNG_LDEBUGF("PNG::Image::ReadMT Reading unknown chunk {:.{}} (0x{:x}).", (char*)&chunk.Type, (int)sizeof(chunk.Type), chunk.Type);
                 if (!isAux) {
                     readerTRes = Result::UnknownNecessaryChunk;
                     return;
@@ -772,13 +772,13 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
             ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, intPixels, rawPixels);
     });
 
-    PNG_LDEBUG("Joining IDAT Reader.");
+    PNG_LDEBUG("PNG::Image::ReadMT Joining IDAT Reader.");
     readerT.join();
     idat.Close();
-    PNG_LDEBUG("Joining IDAT Inflater.");
+    PNG_LDEBUG("PNG::Image::ReadMT Joining IDAT Inflater.");
     inflaterT.join();
     intPixels.Close();
-    PNG_LDEBUG("Joining Deinterlacer.");
+    PNG_LDEBUG("PNG::Image::ReadMT Joining Deinterlacer.");
     deinterlacerT.join();
 
     if (readerTRes != Result::OK)
@@ -788,7 +788,7 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
     if (deinterlacerTRes != Result::OK)
         return deinterlacerTRes;
 
-    PNG_LDEBUG("Loading raw pixels into Image.");
+    PNG_LDEBUG("PNG::Image::ReadMT Loading raw pixels into Image.");
     out.SetSize(ihdr.Width, ihdr.Height);
     PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, &palette, rawPixels);
 

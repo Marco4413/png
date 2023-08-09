@@ -76,7 +76,7 @@ PNG::Result PNG::ZLib::DecompressData(IStream& in, OStream& out)
             inflateEnd(&inf);
             PNG_RETURN_IF_NOT_OK(out.WriteBuffer, outBuffer, OUT_CAPACITY-inf.avail_out);
             PNG_RETURN_IF_NOT_OK(out.Flush);
-            PNG_LDEBUGF("PNG::ZLib::DecompressData inflated %ldB into %ldB.", inf.total_in, inf.total_out);
+            PNG_LDEBUGF("PNG::ZLib::DecompressData inflated {}B into {}B.", inf.total_in, inf.total_out);
             return PNG::Result::OK;
         }
 
@@ -98,9 +98,9 @@ PNG::Result PNG::ZLib::DecompressData(IStream& in, OStream& out)
     if (pres != Result::OK)
         return pres;
 
-    PNG_LDEBUGF("PNG::ZLib::DecompressData error code (%d).", zcode);
+    PNG_LDEBUGF("PNG::ZLib::DecompressData error code ({}).", zcode);
     if (inf.msg)
-        PNG_LDEBUGF("PNG::ZLib::DecompressData error message: %s.", inf.msg);
+        PNG_LDEBUGF("PNG::ZLib::DecompressData error message: {}.", inf.msg);
 
     return Result::ZLib_DataError;
 }
@@ -149,7 +149,7 @@ PNG::Result PNG::ZLib::CompressData(IStream& in, OStream& out, CompressionLevel 
             deflateEnd(&def);
             PNG_RETURN_IF_NOT_OK(out.WriteBuffer, outBuffer, OUT_CAPACITY-def.avail_out);
             PNG_RETURN_IF_NOT_OK(out.Flush);
-            PNG_LDEBUGF("PNG::ZLib::CompressData deflated %ldB into %ldB.", def.total_in, def.total_out);
+            PNG_LDEBUGF("PNG::ZLib::CompressData deflated {}B into {}B.", def.total_in, def.total_out);
             return PNG::Result::OK;
         }
 
@@ -174,9 +174,9 @@ PNG::Result PNG::ZLib::CompressData(IStream& in, OStream& out, CompressionLevel 
     if (pres != Result::OK)
         return pres;
 
-    PNG_LDEBUGF("PNG::ZLib::CompressData error code (%d).", zcode);
+    PNG_LDEBUGF("PNG::ZLib::CompressData error code ({}).", zcode);
     if (def.msg)
-        PNG_LDEBUGF("PNG::ZLib::CompressData error message: %s.", def.msg);
+        PNG_LDEBUGF("PNG::ZLib::CompressData error message: {}.", def.msg);
 
     return Result::ZLib_DataError;
 }

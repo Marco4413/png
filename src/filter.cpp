@@ -78,7 +78,7 @@ PNG::Result PNG::AdaptiveFiltering::UnfilterPixels(size_t width, size_t height, 
             }
             break;
         default:
-            PNG_LDEBUGF("PNG::AdaptiveFiltering::UnfilterPixels Unknown filter type %d in image %ldx%ld (pb=%ld,bpp=%ld,sl=%ld,y=%ld).",
+            PNG_LDEBUGF("PNG::AdaptiveFiltering::UnfilterPixels Unknown filter type {} in image {}x{} (pb={},bpp={},sl={},y={}).",
                 filterType, width, height, pixelBits, bpp, packedRowSize+1, y);
             return Result::UnknownFilterType;
         }
@@ -124,7 +124,7 @@ PNG::Result PNG::AdaptiveFiltering::FilterPixels(size_t width, size_t height, si
         optimize = true;
         break;
     default:
-        PNG_UNREACHABLEF("PNG::AdaptiveFiltering::FilterPixels Missing case for CompressionLevel %d.", (int)clevel);
+        PNG_UNREACHABLEF("PNG::AdaptiveFiltering::FilterPixels Missing case for CompressionLevel {}.", (int)clevel);
     }
 
     size_t bpp = BitsToBytes(pixelBits);

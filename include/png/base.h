@@ -145,7 +145,7 @@ namespace PNG
     inline T Lerp(double t, const T& x0, const T& x1)
     {
         if (t < 0.0 || t > 1.0)
-            PNG_LDEBUGF("PNG::Lerp t is not in the range [0; 1] %lf", t);
+            PNG_LDEBUGF("PNG::Lerp t is not in the range [0; 1] {}", t);
         return (1.0 - t) * x0 + t * x1;
     }
 } 
