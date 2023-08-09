@@ -4,11 +4,12 @@
 #define _PNG_BASE_H
 
 #include <inttypes.h>
-#include <stdio.h>
-#include <stdlib.h>
 
+#include <cstdlib>
 #include <cstring>
 #include <vector>
+
+#include "fmt/color.h"
 
 #define PNG_RETURN_IF_NOT_OK(func, ...) \
     do { \
@@ -22,30 +23,26 @@
 #define PNG_ASSERT(cond, msg) \
     do { \
         if (!(cond)) { \
-            printf("%s:%d: Assert (%s) failed: %s\n", __FILE__, __LINE__, #cond, msg); \
-            exit(1); \
+            fmt::print(stderr, fmt::fg(fmt::color::red), "{}:{}: Assert ({}) failed: {}\n", __FILE__, __LINE__, #cond, msg); \
+            std::exit(1); \
         } \
     } while (0)
 
-#define PNG_ASSERTF(cond, fmt, ...) \
+#define PNG_ASSERTF(cond, sfmt, ...) \
     do { \
         if (!(cond)) { \
-            printf("%s:%d: Assert (%s) failed: ", __FILE__, __LINE__, #cond); \
-            printf(fmt, __VA_ARGS__ ); \
-            printf("\n"); \
-            exit(1); \
+            fmt::print(stderr, fmt::fg(fmt::color::red), "{}:{}: Assert ({}) failed: {}\n", __FILE__, __LINE__, #cond, \
+                fmt::format(sfmt, __VA_ARGS__ )); \
+            std::exit(1); \
         } \
     } while (0)
 
 #define PNG_LDEBUG(msg) \
-        printf("%s:%d: Debug: %s\n", __FILE__, __LINE__, msg)
+    fmt::print(stdout, fmt::fg(fmt::color::blue), "{}:{}: Debug: {}\n", __FILE__, __LINE__, msg)
 
-#define PNG_LDEBUGF(fmt, ...) \
-    do { \
-        printf("%s:%d: Debug: ", __FILE__, __LINE__); \
-        printf(fmt, __VA_ARGS__ ); \
-        printf("\n"); \
-    } while (0)
+#define PNG_LDEBUGF(sfmt, ...) \
+    fmt::print(stdout, fmt::fg(fmt::color::blue), "{}:{}: Debug: {}\n", __FILE__, __LINE__, \
+        fmt::format(sfmt, __VA_ARGS__ )); \
 
 #else // PNG_DEBUG
 
@@ -59,16 +56,15 @@
 
 #define PNG_UNREACHABLE(msg) \
     do { \
-        printf("%s:%d: Unreachable: %s\n", __FILE__, __LINE__, msg); \
-        exit(1); \
+        fmt::print(stderr, fmt::fg(fmt::color::red), "{}:{}: Unreachable: {}\n", __FILE__, __LINE__, msg); \
+        std::exit(1); \
     } while (0)
 
-#define PNG_UNREACHABLEF(fmt, ...) \
+#define PNG_UNREACHABLEF(sfmt, ...) \
     do { \
-        printf("%s:%d: Unreachable: ", __FILE__, __LINE__); \
-        printf(fmt, __VA_ARGS__ ); \
-        printf("\n"); \
-        exit(1); \
+        fmt::print(stderr, fmt::fg(fmt::color::red), "{}:{}: Unreachable: {}\n", __FILE__, __LINE__, \
+            fmt::format(sfmt, __VA_ARGS__ )); \
+        std::exit(1); \
     } while (0)
 
 namespace PNG
