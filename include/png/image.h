@@ -38,6 +38,50 @@ namespace PNG
         Result Validate() const;
     };
 
+    enum class WrapMode
+    {
+        None, Clamp, Repeat,
+    };
+
+    class ConstImageRowView
+    {
+    public:
+        const Color* const Data;
+        const size_t Width;
+        PNG::WrapMode WrapMode;
+
+    public:
+        ConstImageRowView(const Color* data, size_t width, PNG::WrapMode wrapMode)
+            : Data(data), Width(width), WrapMode(wrapMode) { }
+
+        ConstImageRowView(const ConstImageRowView& other) = default;
+        ConstImageRowView& operator=(const ConstImageRowView& other) = default;
+
+        const Color* At(size_t x, int64_t dx) const;
+
+        operator bool() const { return Data; }
+    };
+
+    class ImageRowView
+    {
+    public:
+        Color* const Data;
+        const size_t Width;
+        PNG::WrapMode WrapMode;
+
+    public:
+        ImageRowView(Color* data, size_t width, PNG::WrapMode wrapMode)
+            : Data(data), Width(width), WrapMode(wrapMode) { }
+
+        ImageRowView(const ImageRowView& other) = default;
+        ImageRowView& operator=(const ImageRowView& other) = default;
+
+        const Color* At(size_t x, int64_t dx) const;
+        Color* At(size_t x, int64_t dx);
+
+        operator bool() const { return Data; }
+    };
+
     class Image
     {
     public:

@@ -38,6 +38,74 @@
         } \
         break;
 
+#define PNG_IMAGE_GET_ROW(ImageViewClass) \
+    { \
+        if (!m_Pixels) \
+            return ImageViewClass(nullptr, 0, wrapMode); \
+        if (dy < 0 && y < (size_t)-dy) { \
+            /* Out of bounds top */ \
+            switch (wrapMode) { \
+            case WrapMode::None: \
+                return ImageViewClass(nullptr, 0, wrapMode); \
+            case WrapMode::Clamp: \
+                return ImageViewClass((*this)[0], m_Width, wrapMode); \
+            case WrapMode::Repeat: { \
+                size_t bottomOffset = ((size_t)-dy) % m_Height; \
+                return ImageViewClass((*this)[m_Height - 1 - bottomOffset], m_Width, wrapMode); \
+            } \
+            default: \
+                PNG_UNREACHABLEF("PNG_IMAGE_GET_ROW WrapMode case missing (%d) when out of bounds top.", (int)wrapMode); \
+            } \
+        } else if (y + dy >= m_Height) { \
+            /* Out of bounds bottom */ \
+            switch (wrapMode) { \
+            case WrapMode::None: \
+                return ImageViewClass(nullptr, 0, wrapMode); \
+            case WrapMode::Clamp: \
+                return ImageViewClass((*this)[m_Height-1], m_Width, wrapMode); \
+            case WrapMode::Repeat: \
+                return ImageViewClass((*this)[(y+dy) % m_Height], m_Width, wrapMode); \
+            default: \
+                PNG_UNREACHABLEF("PNG_IMAGE_GET_ROW WrapMode case missing (%d) when out of bounds bottom.", (int)wrapMode); \
+            } \
+        } \
+        return ImageViewClass((*this)[y+dy], m_Width, wrapMode); \
+    }
+
+#define PNG_IMAGE_VIEW_AT \
+    { \
+        if (!Data) \
+            return nullptr; \
+        if (dx < 0 && x < (size_t)-dx) { \
+            /* Out of bounds left */ \
+            switch (WrapMode) { \
+            case PNG::WrapMode::None: \
+                return nullptr; \
+            case PNG::WrapMode::Clamp: \
+                return &Data[0]; \
+            case PNG::WrapMode::Repeat: { \
+                size_t rightOffset = ((size_t)-dx) % Width; \
+                return &Data[Width - 1 - rightOffset]; \
+            } \
+            default: \
+                PNG_UNREACHABLEF("PNG_IMAGE_VIEW_AT WrapMode case missing (%d) when out of bounds left.", (int)WrapMode); \
+            } \
+        } else if (x + dx > Width) { \
+            /* Out of bounds right */ \
+            switch (WrapMode) { \
+            case PNG::WrapMode::None: \
+                return nullptr; \
+            case PNG::WrapMode::Clamp: \
+                return &Data[Width-1]; \
+            case PNG::WrapMode::Repeat: \
+                return &Data[(x+dx) % Width]; \
+            default: \
+                PNG_UNREACHABLEF("PNG_IMAGE_VIEW_AT WrapMode case missing (%d) when out of bounds right.", (int)WrapMode); \
+            } \
+        } \
+        return &Data[x+dx]; \
+    }
+
 PNG::Result PNG::ExportSettings::Validate() const
 {
     if (IDATSize == 0)
@@ -68,6 +136,11 @@ PNG::Result PNG::ExportSettings::Validate() const
 
     return Result::OK;
 }
+
+const PNG::Color* PNG::ConstImageRowView::At(size_t x, int64_t dx) const { PNG_IMAGE_VIEW_AT }
+
+const PNG::Color* PNG::ImageRowView::At(size_t x, int64_t dx) const { PNG_IMAGE_VIEW_AT }
+PNG::Color* PNG::ImageRowView::At(size_t x, int64_t dx) { PNG_IMAGE_VIEW_AT }
 
 PNG::Image& PNG::Image::operator=(const Image& other)
 {
