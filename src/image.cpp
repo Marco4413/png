@@ -301,6 +301,9 @@ void PNG::Image::SetSize(size_t width, size_t height)
     m_Pixels = new Color[width * height];
 }
 
+PNG::ConstImageRowView PNG::Image::GetRow(size_t y, int64_t dy, WrapMode wrapMode) const { PNG_IMAGE_GET_ROW(ConstImageRowView) }
+PNG::ImageRowView PNG::Image::GetRow(size_t y, int64_t dy, WrapMode wrapMode) { PNG_IMAGE_GET_ROW(ImageRowView) }
+
 PNG::Result PNG::Image::LoadRawPixels(uint8_t colorType, size_t bitDepth, const std::vector<Color>* palette, const std::vector<uint8_t>& in)
 {
     if (colorType == ColorType::PALETTE && !palette)
