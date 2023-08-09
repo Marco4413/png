@@ -8,6 +8,7 @@
 #include "png/color.h"
 #include "png/compression.h"
 #include "png/interlace.h"
+#include "png/kernel.h"
 #include "png/stream.h"
 
 namespace PNG
@@ -100,6 +101,8 @@ namespace PNG
 
         void Crop(size_t left, size_t top, size_t right, size_t bottom);
         void Resize(size_t width, size_t height, ScalingMethod scalingMethod = ScalingMethod::Nearest);
+
+        void ApplyKernel(const Kernel& kernel, WrapMode wrapMode = WrapMode::None);
         void ApplyDithering(const std::vector<Color>& palette, DitheringMethod ditheringMethod);
 
         void SetSize(size_t width, size_t height);

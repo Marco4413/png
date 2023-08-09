@@ -226,6 +226,34 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
     }
 }
 
+void PNG::Image::ApplyKernel(const Kernel& kernel, WrapMode wrapMode)
+{
+    const Image src(std::move(*this));
+    SetSize(src.m_Width, src.m_Height);
+
+    auto imgHeight = std::ranges::iota_view((size_t)0, m_Height);
+    std::for_each(std::execution::seq, imgHeight.begin(), imgHeight.end(), [this, &kernel, &src, wrapMode](size_t y) {
+        for (size_t x = 0; x < m_Width; x++) {
+            Color finalColor(0.0);
+            for (size_t kY = 0; kY < kernel.Height; kY++) {
+                const ConstImageRowView row = src.GetRow(y, (int64_t)kY - (int64_t)kernel.AnchorY, wrapMode);
+                if (!row)
+                    continue;
+                for (size_t kX = 0; kX < kernel.Width; kX++) {
+                    double value = kernel[kY][kX];
+                    if (value == 0.0)
+                        continue;
+                    const Color* color = row.At(x, (int64_t)kX - (int64_t)kernel.AnchorX);
+                    if (!color)
+                        continue;
+                    finalColor += (*color) * value;
+                }
+            }
+            (*this)[y][x] = finalColor.Clamp();
+        }
+    });
+}
+
 void PNG::Image::ApplyDithering(const std::vector<Color>& palette, DitheringMethod ditheringMethod)
 {
     for (size_t y = 0; y < m_Height; y++) {
