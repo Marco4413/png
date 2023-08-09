@@ -7,35 +7,13 @@ This project was made for educational purposes and may be discontinued at any ti
 
 ### Building
 
-**Building is only supported on Linux.** (you can use WSL if you are on Windows)
+This project uses `premake5` to create build files. All build files created by premake are put into the `build` directory.
+Solutions and Make files are not pushed to this repo, you should run `premake5` when you download this project.
 
-To download and install external libraries you should run the script file `setup.sh` which is located in the `libs` directory
-(THE WORKING DIR MUST BE THE `libs` FOLDER).
+**NOTE:** Remember to have a compiler which fully supports C++20!
 
-Running `setup.sh` requires `git`, `cmake` and `make` to be installed.
-
-```sh
-$ cd libs
-$ ./setup.sh
-$ cd ..
-```
-
-To actually build the project you should run the `build.sh` script and have the `g++` compiler installed.
-
-The executable will be found at `out/main`.
-
-```sh
-$ ./build.sh
-```
-
-#### Building as a static library
-
-Running `build.sh` with `static` as its first argument will build this project as a static library.
-The static library file can be found at `libpng.a` and include files are inside the `include` directory.
-
-```sh
-$ ./build.sh static
-```
+Build output can be found inside either `build/Debug` or `build/Release` depending on the configuration. If building `png` (the static
+library's project) the library file will be found in the same directories, and include files can be found inside the `include` folder.
 
 ### TODO
 

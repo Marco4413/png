@@ -1,0 +1,6 @@
+[submodule "libs/zlib"]
+	path = libs/zlib
+	url = https://github.com/Marco4413/zlib
+[submodule "libs/fmt"]
+	path = libs/fmt
+	url = https://github.com/Marco4413/fmt
