@@ -3,7 +3,10 @@
 #include "png/chunk.h"
 #include "png/filter.h"
 
+#include <algorithm>
 #include <cmath>
+#include <execution>
+#include <ranges>
 #include <thread>
 
 // This is a macro since both Image::ApplyDithering and Image::WriteDitheredRawPixels need it
@@ -283,6 +286,57 @@ void PNG::Image::ApplyDithering(const std::vector<Color>& palette, DitheringMeth
             }
         }
     }
+}
+
+void PNG::Image::ApplyGrayscale()
+{
+    for (size_t y = 0; y < m_Height; y++) {
+        for (size_t x = 0; x < m_Width; x++) {
+            Color& color = (*this)[y][x];
+            float grayscale = (color.R + color.G + color.B) / 3.0;
+            color.R = grayscale;
+            color.G = grayscale;
+            color.B = grayscale;
+        }
+    }
+}
+
+// https://en.wikipedia.org/wiki/Gaussian_blur
+void PNG::Image::ApplyGaussianBlur(float stDev, float radius, WrapMode wrapMode)
+{
+    size_t diameter = 2*radius;
+    Kernel kernel(diameter, diameter, {1.0});
+
+    // double stDev = radius; // 0.84089642
+    double stDev2 = stDev*stDev;
+
+    for (size_t kY = 0; kY < kernel.Height; kY++) {
+        double y = kY - (double)kernel.AnchorY;
+        for (size_t kX = 0; kX < kernel.Width; kX++) {
+            double x = kX - (double)kernel.AnchorX;
+            double g = 1 / (2*PNG_PI*stDev2)*std::pow(PNG_E, -(x*x+y*y)/(2*stDev2));
+            kernel[kY][kX] = g;
+        }
+    }
+
+    ApplyKernel(kernel, wrapMode);
+}
+
+// https://en.wikipedia.org/wiki/Unsharp_masking
+void PNG::Image::ApplySharpening(float amount, WrapMode wrapMode)
+{
+    // Side multiplier
+    const float smul = -1.0;
+    // Center multiplier
+    const float cmul = 1.0 + (1.0 - 1.0 / amount) * amount;
+
+    const Kernel kernel(3, 3, {
+         0.0, smul,  0.0,
+        smul, cmul, smul,
+         0.0, smul,  0.0,
+    });
+
+    ApplyKernel(kernel, wrapMode);
 }
 
 void PNG::Image::SetSize(size_t width, size_t height)

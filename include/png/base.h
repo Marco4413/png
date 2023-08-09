@@ -67,6 +67,9 @@
         std::exit(1); \
     } while (0)
 
+#define PNG_PI 3.141592653589793
+#define PNG_E  2.718281828459045
+
 namespace PNG
 {
     const size_t PNG_SIGNATURE_LEN = 8;
