@@ -302,7 +302,7 @@ void PNG::Image::ApplyGrayscale()
 }
 
 // https://en.wikipedia.org/wiki/Gaussian_blur
-void PNG::Image::ApplyGaussianBlur(float stDev, float radius, WrapMode wrapMode)
+void PNG::Image::ApplyGaussianBlur(double stDev, double radius, WrapMode wrapMode)
 {
     size_t diameter = (size_t)(2 * radius);
     Kernel kernel(diameter, diameter, {1.0});
@@ -323,7 +323,7 @@ void PNG::Image::ApplyGaussianBlur(float stDev, float radius, WrapMode wrapMode)
 }
 
 // https://en.wikipedia.org/wiki/Unsharp_masking
-void PNG::Image::ApplySharpening(float amount, WrapMode wrapMode)
+void PNG::Image::ApplySharpening(double amount, WrapMode wrapMode)
 {
     // Side multiplier
     const double smul = -1.0;
@@ -634,7 +634,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, s
                 return Result::InvalidtRNSSize;
 
             for (size_t i = 0; i < chunk.Length(); i++)
-                palette[i].A = chunk.Data[i] / 255.0;
+                palette[i].A = (float)(chunk.Data[i] / 255.0);
             break;
         default:
             PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk {:.{}} (0x{:x}).", (char*)&chunk.Type, (int)sizeof(chunk.Type), chunk.Type);
@@ -772,7 +772,7 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut,
                 }
 
                 for (size_t i = 0; i < chunk.Length(); i++)
-                    palette[i].A = chunk.Data[i] / 255.0;
+                    palette[i].A = (float)(chunk.Data[i] / 255.0);
                 break;
             default:
                 PNG_LDEBUGF("PNG::Image::ReadMT Reading unknown chunk {:.{}} (0x{:x}).", (char*)&chunk.Type, (int)sizeof(chunk.Type), chunk.Type);

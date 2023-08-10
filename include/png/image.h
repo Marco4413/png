@@ -107,10 +107,10 @@ namespace PNG
         void ApplyDithering(const std::vector<Color>& palette, DitheringMethod ditheringMethod);
         void ApplyGrayscale();
 
-        void ApplyGaussianBlur(float stDev, WrapMode wrapMode = WrapMode::None) { ApplyGaussianBlur(stDev, 3 * stDev, wrapMode); }
-        void ApplyGaussianBlur(float stDev, float radius, WrapMode wrapMode = WrapMode::None);
+        void ApplyGaussianBlur(double stDev, WrapMode wrapMode = WrapMode::None) { ApplyGaussianBlur(stDev, 3 * stDev, wrapMode); }
+        void ApplyGaussianBlur(double stDev, double radius, WrapMode wrapMode = WrapMode::None);
         
-        void ApplySharpening(float amount = 5.0f, WrapMode wrapMode = WrapMode::None);
+        void ApplySharpening(double amount = 5.0f, WrapMode wrapMode = WrapMode::None);
 
         void SetSize(size_t width, size_t height);
         inline void Clear() { SetSize(0, 0); }
