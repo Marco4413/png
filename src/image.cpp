@@ -117,7 +117,7 @@ PNG::Result PNG::ExportSettings::Validate() const
     if (ColorType == ColorType::PALETTE) {
         if (!Palette)
             return Result::PaletteNotFound;
-        size_t maxPaletteSize = (1 << BitDepth);
+        size_t maxPaletteSize = (size_t)1 << BitDepth;
         if (Palette->size() > maxPaletteSize)
             return Result::InvalidPaletteSize;
     }
@@ -195,9 +195,9 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
     switch (scalingMethod) {
     case ScalingMethod::Nearest:
         for (size_t y = 0; y < m_Height; y++) {
-            size_t srcy = std::floor(y * scaleY + 0.5);
+            size_t srcy = (size_t)std::floor(y * scaleY + 0.5);
             for (size_t x = 0; x < m_Width; x++) {
-                size_t srcx = std::floor(x * scaleX + 0.5);
+                size_t srcx = (size_t)std::floor(x * scaleX + 0.5);
                 dst[y][x] = src[srcy][srcx];
             }
         }
@@ -206,10 +206,10 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
     case ScalingMethod::Bilinear:
         for (size_t y = 0; y < m_Height; y++) {
             double cy = y * scaleY;
-            size_t srcy = std::floor(cy);
+            size_t srcy = (size_t)std::floor(cy);
             for (size_t x = 0; x < m_Width; x++) {
                 double cx = x * scaleX;
-                size_t srcx = std::floor(cx);
+                size_t srcx = (size_t)std::floor(cx);
 
                 const Color* col11 = src.At(srcx, srcy, 0, 0);
                 PNG_ASSERTF(col11, "PNG::Image::Resize Color at (%ld, %ld) is null.", srcx, srcy);
@@ -293,7 +293,7 @@ void PNG::Image::ApplyGrayscale()
     for (size_t y = 0; y < m_Height; y++) {
         for (size_t x = 0; x < m_Width; x++) {
             Color& color = (*this)[y][x];
-            float grayscale = (color.R + color.G + color.B) / 3.0;
+            float grayscale = (float)((color.R + color.G + color.B) / 3.0);
             color.R = grayscale;
             color.G = grayscale;
             color.B = grayscale;
@@ -304,7 +304,7 @@ void PNG::Image::ApplyGrayscale()
 // https://en.wikipedia.org/wiki/Gaussian_blur
 void PNG::Image::ApplyGaussianBlur(float stDev, float radius, WrapMode wrapMode)
 {
-    size_t diameter = 2*radius;
+    size_t diameter = (size_t)(2 * radius);
     Kernel kernel(diameter, diameter, {1.0});
 
     // double stDev = radius; // 0.84089642
@@ -326,9 +326,9 @@ void PNG::Image::ApplyGaussianBlur(float stDev, float radius, WrapMode wrapMode)
 void PNG::Image::ApplySharpening(float amount, WrapMode wrapMode)
 {
     // Side multiplier
-    const float smul = -1.0;
+    const double smul = -1.0;
     // Center multiplier
-    const float cmul = 1.0 + (1.0 - 1.0 / amount) * amount;
+    const double cmul = 1.0 + (1.0 - 1.0 / amount) * amount;
 
     const Kernel kernel(3, 3, {
          0.0, smul,  0.0,
@@ -469,22 +469,22 @@ PNG::Result PNG::Image::WriteRawPixels(uint8_t colorType, size_t bitDepth, OStre
             switch (colorType)
             {
             case ColorType::GRAYSCALE:
-                rawColor[0] = (color.R + color.G + color.B) / 3.0 * MAX_SAMPLE_VALUE;
+                rawColor[0] = (size_t)((color.R + color.G + color.B) / 3.0 * MAX_SAMPLE_VALUE);
                 break;
             case ColorType::RGB:
-                rawColor[0] = color.R * MAX_SAMPLE_VALUE;
-                rawColor[1] = color.G * MAX_SAMPLE_VALUE;
-                rawColor[2] = color.B * MAX_SAMPLE_VALUE;
+                rawColor[0] = (size_t)(color.R * MAX_SAMPLE_VALUE);
+                rawColor[1] = (size_t)(color.G * MAX_SAMPLE_VALUE);
+                rawColor[2] = (size_t)(color.B * MAX_SAMPLE_VALUE);
                 break;
             case ColorType::GRAYSCALE_ALPHA:
-                rawColor[0] = (color.R + color.G + color.B) / 3.0 * MAX_SAMPLE_VALUE;
-                rawColor[1] = color.A * MAX_SAMPLE_VALUE;
+                rawColor[0] = (size_t)((color.R + color.G + color.B) / 3.0 * MAX_SAMPLE_VALUE);
+                rawColor[1] = (size_t)(color.A * MAX_SAMPLE_VALUE);
                 break;
             case ColorType::RGBA:
-                rawColor[0] = color.R * MAX_SAMPLE_VALUE;
-                rawColor[1] = color.G * MAX_SAMPLE_VALUE;
-                rawColor[2] = color.B * MAX_SAMPLE_VALUE;
-                rawColor[3] = color.A * MAX_SAMPLE_VALUE;
+                rawColor[0] = (size_t)(color.R * MAX_SAMPLE_VALUE);
+                rawColor[1] = (size_t)(color.G * MAX_SAMPLE_VALUE);
+                rawColor[2] = (size_t)(color.B * MAX_SAMPLE_VALUE);
+                rawColor[3] = (size_t)(color.A * MAX_SAMPLE_VALUE);
                 break;
             case ColorType::PALETTE:
                 PNG_UNREACHABLE("PNG::Image::WriteRawPixels Early return failed for Palette color type.");
@@ -495,7 +495,7 @@ PNG::Result PNG::Image::WriteRawPixels(uint8_t colorType, size_t bitDepth, OStre
             for (size_t j = 0; j < samples; j++) {
                 size_t sample = rawColor[j];
                 for (size_t k = 0; k < sampleSize; k++)
-                    PNG_RETURN_IF_NOT_OK(out.WriteU8, sample >> ((sampleSize-k-1) * 8));
+                    PNG_RETURN_IF_NOT_OK(out.WriteU8, (uint8_t)(sample >> ((sampleSize - k - 1) * 8)));
             }
         }
         // Flush on each scanline
@@ -509,7 +509,7 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
 {
     if (!ColorType::IsValidBitDepth(ColorType::PALETTE, bitDepth))
         return Result::InvalidBitDepth;
-    if (palette.size() == 0 || palette.size() > (size_t)(1 << bitDepth))
+    if (palette.size() == 0 || palette.size() > (size_t)1 << bitDepth)
         return Result::InvalidPaletteSize;
     PNG_ASSERTF(bitDepth <= 8, "PNG::Image::WriteDitheredRawPixels Illegal bit depth %ld.", bitDepth);
 
@@ -528,7 +528,7 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
             // Find closest palette color
             size_t bestPaletteI = FindClosestPaletteColor(color, palette);
 
-            line[x] = bestPaletteI;
+            line[x] = (uint8_t)bestPaletteI;
             // No need to apply error diffusion
             if (ditheringMethod == DitheringMethod::None)
                 continue;
@@ -594,15 +594,18 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
         bool isAux = ChunkType::IsAncillary(chunk.Type);
 
         switch (chunk.Type) {
-        case ChunkType::PLTE:
+        case ChunkType::PLTE: {
             if (idats > 0 || ihdr.ColorType == ColorType::GRAYSCALE ||
                 ihdr.ColorType == ColorType::GRAYSCALE_ALPHA
             ) {
                 return Result::IllegalPaletteChunk;
-            } else if (palette.size() > 0) {
+            } else if (palette.size() > 0)
                 return Result::DuplicatePalette;
-            } else if (ihdr.ColorType == ColorType::PALETTE &&
-                (chunk.Length() / 3) > (size_t)(1 << ihdr.BitDepth)
+            
+            size_t paletteEntries = chunk.Length() / 3;
+            if (ihdr.ColorType == ColorType::PALETTE &&
+                (paletteEntries == 0 ||
+                paletteEntries > (size_t)1 << ihdr.BitDepth)
             ) {
                 return Result::InvalidPaletteSize;
             }
@@ -613,6 +616,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
                     chunk.Data[i+2]/255.0);
             }
             break;
+        }
         case ChunkType::IDAT:
             // TODO: Check if last chunk was IDAT
             if (ihdr.ColorType == ColorType::PALETTE && palette.size() == 0)
@@ -701,7 +705,7 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
             bool isAux = ChunkType::IsAncillary(chunk.Type);
 
             switch (chunk.Type) {
-            case ChunkType::PLTE:
+            case ChunkType::PLTE: {
                 if (idats > 0 || ihdr.ColorType == ColorType::GRAYSCALE ||
                     ihdr.ColorType == ColorType::GRAYSCALE_ALPHA
                 ) {
@@ -710,8 +714,12 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
                 } else if (palette.size() > 0) {
                     readerTRes = Result::DuplicatePalette;
                     return;
-                } else if (ihdr.ColorType == ColorType::PALETTE &&
-                    (chunk.Length() / 3) > (size_t)(1 << ihdr.BitDepth)
+                }
+                
+                size_t paletteEntries = chunk.Length() / 3;
+                if (ihdr.ColorType == ColorType::PALETTE &&
+                    (paletteEntries == 0 ||
+                    paletteEntries > (size_t)1 << ihdr.BitDepth)
                 ) {
                     readerTRes = Result::InvalidPaletteSize;
                     return;
@@ -723,6 +731,7 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
                         chunk.Data[i+2]/255.0);
                 }
                 break;
+            }
             case ChunkType::IDAT:
                 // TODO: Check if last chunk was IDAT
                 if (ihdr.ColorType == ColorType::PALETTE && palette.size() == 0) {
@@ -805,9 +814,9 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg) const
     PNG_RETURN_IF_NOT_OK(out.Flush);
 
     IHDRChunk ihdr;
-    ihdr.Width = m_Width;
-    ihdr.Height = m_Height;
-    ihdr.BitDepth = cfg.BitDepth;
+    ihdr.Width = (uint32_t)m_Width;
+    ihdr.Height = (uint32_t)m_Height;
+    ihdr.BitDepth = (uint8_t)cfg.BitDepth;
     ihdr.ColorType = cfg.ColorType;
     ihdr.CompressionMethod = CompressionMethod::ZLIB;
     ihdr.FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
@@ -827,9 +836,9 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg) const
         chunk.Data.resize(cfg.Palette->size() * 3);
         for (size_t i = 0; i < cfg.Palette->size(); i++) {
             const Color& color = (*cfg.Palette)[i];
-            chunk.Data[i*3  ] = color.R * 255;
-            chunk.Data[i*3+1] = color.G * 255;
-            chunk.Data[i*3+2] = color.B * 255;
+            chunk.Data[i*3  ] = (uint8_t)(color.R * 255);
+            chunk.Data[i*3+1] = (uint8_t)(color.G * 255);
+            chunk.Data[i*3+2] = (uint8_t)(color.B * 255);
         }
         chunk.CRC = chunk.CalculateCRC();
 
@@ -889,9 +898,9 @@ PNG::Result PNG::Image::WriteMT(OStream& out, const ExportSettings& cfg) const
     PNG_RETURN_IF_NOT_OK(out.Flush);
 
     IHDRChunk ihdr;
-    ihdr.Width = m_Width;
-    ihdr.Height = m_Height;
-    ihdr.BitDepth = cfg.BitDepth;
+    ihdr.Width = (uint32_t)m_Width;
+    ihdr.Height = (uint32_t)m_Height;
+    ihdr.BitDepth = (uint8_t)cfg.BitDepth;
     ihdr.ColorType = cfg.ColorType;
     ihdr.CompressionMethod = CompressionMethod::ZLIB;
     ihdr.FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
@@ -909,9 +918,9 @@ PNG::Result PNG::Image::WriteMT(OStream& out, const ExportSettings& cfg) const
             chunk.Data.resize(cfg.Palette->size() * 3);
             for (size_t i = 0; i < cfg.Palette->size(); i++) {
                 const Color& color = (*cfg.Palette)[i];
-                chunk.Data[i*3  ] = color.R * 255;
-                chunk.Data[i*3+1] = color.G * 255;
-                chunk.Data[i*3+2] = color.B * 255;
+                chunk.Data[i*3  ] = (uint8_t)(color.R * 255);
+                chunk.Data[i*3+1] = (uint8_t)(color.G * 255);
+                chunk.Data[i*3+2] = (uint8_t)(color.B * 255);
             }
             chunk.CRC = chunk.CalculateCRC();
 

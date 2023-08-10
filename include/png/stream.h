@@ -72,7 +72,7 @@ namespace PNG
         {
             uint8_t buf[1];
             for (size_t i = 0; i < sizeof(T); i++) {
-                buf[0] = in >> (8 * (sizeof(T) - i - 1));
+                buf[0] = (uint8_t)(in >> (8 * (sizeof(T) - i - 1)));
                 PNG_RETURN_IF_NOT_OK(WriteBuffer, buf, 1);
             }
             return Result::OK;

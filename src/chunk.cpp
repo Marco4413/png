@@ -5,7 +5,7 @@
 uint32_t PNG::Chunk::CalculateCRC() const
 {
     uint32_t c = CRC::Update(~0, Type);
-    return ~CRC::Update(c, Data.data(), Data.size());
+    return ~CRC::Update(c, Data.data(), Length());
 }
 
 PNG::Result PNG::Chunk::Read(IStream& in, Chunk& chunk)

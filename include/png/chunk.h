@@ -24,13 +24,14 @@ namespace PNG
     class Chunk
     {
     public:
-        uint32_t Type;
+        uint32_t Type = 0;
+        // Data has a max length of 2^32
         std::vector<uint8_t> Data;
-        uint32_t CRC;
+        uint32_t CRC = 0;
     public:
         Chunk() = default;
 
-        uint32_t Length() const { return Data.size(); }
+        uint32_t Length() const { return (uint32_t)Data.size(); }
         uint32_t CalculateCRC() const;
 
         static Result Read(IStream& in, Chunk& chunk);

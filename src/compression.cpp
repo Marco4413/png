@@ -21,12 +21,13 @@ int PNG::ZLib::GetLevel(CompressionLevel l)
 
 PNG::Result PNG::ZLib::DecompressData(IStream& in, OStream& out)
 {
-    const size_t IN_CAPACITY = 32768; // 32K
+    // Capacities can be downcasted to uInt, since they're small
+    const size_t IN_CAPACITY = 32768; // 32KiB
     size_t inSize = 0;
     Bytef inBuffer[IN_CAPACITY];
     PNG_RETURN_IF_NOT_OK(in.ReadBuffer, inBuffer, IN_CAPACITY, &inSize);
 
-    const size_t OUT_CAPACITY = 32768; // 32K
+    const size_t OUT_CAPACITY = 32768; // 32KiB
     Bytef outBuffer[OUT_CAPACITY];
 
     /*
@@ -47,7 +48,7 @@ PNG::Result PNG::ZLib::DecompressData(IStream& in, OStream& out)
     inf.zalloc = Z_NULL;
     inf.zfree = Z_NULL;
     inf.opaque = Z_NULL;
-    inf.avail_in = inSize;
+    inf.avail_in = (uInt)inSize;
     inf.next_in = inBuffer;
     inf.avail_out = OUT_CAPACITY;
     inf.next_out = outBuffer;
@@ -89,7 +90,7 @@ PNG::Result PNG::ZLib::DecompressData(IStream& in, OStream& out)
                 break;
 
             inSize += inf.avail_in;
-            inf.avail_in = inSize;
+            inf.avail_in = (uInt)inSize;
             inf.next_in = inBuffer;
         }
     } while (zcode == Z_OK || zcode == Z_BUF_ERROR);
@@ -107,19 +108,20 @@ PNG::Result PNG::ZLib::DecompressData(IStream& in, OStream& out)
 
 PNG::Result PNG::ZLib::CompressData(IStream& in, OStream& out, CompressionLevel level)
 {
-    const size_t IN_CAPACITY = 32768; // 32K
+    // Capacities can be downcasted to uInt, since they're small
+    const size_t IN_CAPACITY = 32768; // 32KiB
     size_t inSize = 0;
     Bytef inBuffer[IN_CAPACITY];
     PNG_RETURN_IF_NOT_OK(in.ReadBuffer, inBuffer, IN_CAPACITY, &inSize);
 
-    const size_t OUT_CAPACITY = 32768; // 32K
+    const size_t OUT_CAPACITY = 32768; // 32KiB
     Bytef outBuffer[OUT_CAPACITY];
 
     z_stream def;
     def.zalloc = Z_NULL;
     def.zfree = Z_NULL;
     def.opaque = Z_NULL;
-    def.avail_in = inSize;
+    def.avail_in = (uInt)inSize;
     def.next_in = inBuffer;
     def.avail_out = OUT_CAPACITY;
     def.next_out = outBuffer;
@@ -165,7 +167,7 @@ PNG::Result PNG::ZLib::CompressData(IStream& in, OStream& out, CompressionLevel 
                 break;
 
             inSize += def.avail_in;
-            def.avail_in = inSize;
+            def.avail_in = (uInt)inSize;
             def.next_in = inBuffer;
         }
     } while (zcode == Z_OK || zcode == Z_BUF_ERROR);

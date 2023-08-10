@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-bool PNG::ColorType::IsValidBitDepth(uint8_t colorType, uint8_t bitDepth)
+bool PNG::ColorType::IsValidBitDepth(uint8_t colorType, size_t bitDepth)
 {
     switch (colorType) {
     case GRAYSCALE:
@@ -41,7 +41,7 @@ size_t PNG::ColorType::GetSamples(uint8_t colorType)
     }
 }
 
-size_t PNG::ColorType::GetBytesPerSample(uint8_t bitDepth)
+size_t PNG::ColorType::GetBytesPerSample(size_t bitDepth)
 {
     size_t bytesPerSample = bitDepth / 8;
     if (bitDepth % 8 != 0) // Round up
@@ -49,7 +49,7 @@ size_t PNG::ColorType::GetBytesPerSample(uint8_t bitDepth)
     return bytesPerSample;
 }
 
-size_t PNG::ColorType::GetBytesPerPixel(uint8_t colorType, uint8_t bitDepth)
+size_t PNG::ColorType::GetBytesPerPixel(uint8_t colorType, size_t bitDepth)
 {
     size_t samples = GetSamples(colorType);
     PNG_ASSERT(samples > 0, "PNG::ColorType::GetBytesPerPixel Invalid sample count for color.");

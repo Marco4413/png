@@ -9,10 +9,10 @@ namespace PNG
 {
     namespace ColorType
     {
-        bool IsValidBitDepth(uint8_t colorType, uint8_t bitDepth);
+        bool IsValidBitDepth(uint8_t colorType, size_t bitDepth);
         size_t GetSamples(uint8_t colorType);
-        size_t GetBytesPerSample(uint8_t bitDepth);
-        size_t GetBytesPerPixel(uint8_t colorType, uint8_t bitDepth);
+        size_t GetBytesPerSample(size_t bitDepth);
+        size_t GetBytesPerPixel(uint8_t colorType, size_t bitDepth);
 
         const size_t MAX_SAMPLES = 4;
         
@@ -42,6 +42,20 @@ namespace PNG
         Color()
             : Color(0.0f) { }
 
+        // Constructors that accept `double` downcast to `float`
+
+        Color(double r, double g, double b, double a)
+            : Color((float)r, (float)g, (float)b, (float)a) { }
+
+        Color(double r, double g, double b)
+            : Color((float)r, (float)g, (float)b) { }
+
+        Color(double gray, double alpha)
+            : Color((float)gray, (float)alpha) { }
+
+        Color(double gray)
+            : Color((float)gray) { }
+
         Color& Clamp();
         
         Color& operator+=(const Color& other);
@@ -54,8 +68,15 @@ namespace PNG
         Color operator*(float n) const;
         friend Color operator*(float n, const Color& c) { return c * n; };
 
+        Color& operator*=(double n) { return (*this) *= (float)n; }
+        Color operator*(double n) const { return (*this) * (float)n; }
+        friend Color operator*(double n, const Color& c) { return c * n; };
+
         Color& operator/=(float n);
         Color operator/(float n) const;
+
+        Color& operator/=(double n) { return (*this) /= (float)n; }
+        Color operator/(double n) const { return (*this) / (float)n; }
     };
 
     size_t FindClosestPaletteColor(const Color& color, const std::vector<Color>& palette);
