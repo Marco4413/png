@@ -28,6 +28,7 @@ namespace PNG
         uint8_t ColorType = PNG::ColorType::RGBA;
         size_t BitDepth = 8;
         const std::vector<Color>* Palette = nullptr;
+        bool PaletteAlpha = false;
         PNG::DitheringMethod DitheringMethod = PNG::DitheringMethod::None;
         PNG::CompressionLevel CompressionLevel = PNG::CompressionLevel::Default;
         uint8_t InterlaceMethod = PNG::InterlaceMethod::NONE;

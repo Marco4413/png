@@ -100,6 +100,7 @@ namespace PNG
         PaletteNotFound,
         InvalidPaletteIndex,
         IllegalIDATSize,
+        InvalidtRNSSize,
         UpdatingClosedStreamError,
         ZLib_NotAvailable,
         ZLib_DataError,

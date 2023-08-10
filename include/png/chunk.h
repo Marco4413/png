@@ -19,6 +19,8 @@ namespace PNG
         const uint32_t IHDR = 0x49484452;
         const uint32_t IDAT = 0x49444154;
         const uint32_t IEND = 0x49454e44;
+
+        const uint32_t tRNS = 0x74524e53;
     }
 
     class Chunk

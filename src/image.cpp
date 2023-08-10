@@ -626,6 +626,16 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, s
             PNG_RETURN_IF_NOT_OK(idat.Flush);
         case ChunkType::IEND:
             break;
+        case ChunkType::tRNS:
+            if (ihdr.ColorType != ColorType::PALETTE) {
+                PNG_LDEBUGF("PNG::Image::Read tRNS chunk is only supported for palette color type, got {}.", (size_t)ihdr.ColorType);
+                break;
+            } else if (chunk.Length() > palette.size())
+                return Result::InvalidtRNSSize;
+
+            for (size_t i = 0; i < chunk.Length(); i++)
+                palette[i].A = chunk.Data[i] / 255.0;
+            break;
         default:
             PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk {:.{}} (0x{:x}).", (char*)&chunk.Type, (int)sizeof(chunk.Type), chunk.Type);
             if (!isAux)
@@ -752,6 +762,18 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut,
                 idats++;
             case ChunkType::IEND:
                 break;
+            case ChunkType::tRNS:
+                if (ihdr.ColorType != ColorType::PALETTE) {
+                    PNG_LDEBUGF("PNG::Image::Read tRNS chunk is only supported for Palette color type, got {}.", (size_t)ihdr.ColorType);
+                    break;
+                } else if (chunk.Length() > palette.size()) {
+                    readerTRes = Result::InvalidtRNSSize;
+                    return;
+                }
+
+                for (size_t i = 0; i < chunk.Length(); i++)
+                    palette[i].A = chunk.Data[i] / 255.0;
+                break;
             default:
                 PNG_LDEBUGF("PNG::Image::ReadMT Reading unknown chunk {:.{}} (0x{:x}).", (char*)&chunk.Type, (int)sizeof(chunk.Type), chunk.Type);
                 if (!isAux) {
@@ -836,6 +858,9 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg) const
         PNG_ASSERT(cfg.Palette, "PNG::Image::Write Early palette check failed.");
         PNG_RETURN_IF_NOT_OK(WriteDitheredRawPixels, *cfg.Palette, ihdr.BitDepth, cfg.DitheringMethod, rawImage);
 
+        std::vector<uint8_t> tRNS(cfg.Palette->size(), 255);
+        size_t lastAlpha = tRNS.size();
+
         chunk.Type = ChunkType::PLTE;
         chunk.Data.resize(cfg.Palette->size() * 3);
         for (size_t i = 0; i < cfg.Palette->size(); i++) {
@@ -843,11 +868,25 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg) const
             chunk.Data[i*3  ] = (uint8_t)(color.R * 255);
             chunk.Data[i*3+1] = (uint8_t)(color.G * 255);
             chunk.Data[i*3+2] = (uint8_t)(color.B * 255);
+            if (cfg.PaletteAlpha && color.A < 1.0) {
+                lastAlpha = i;
+                tRNS[i] = (uint8_t)(color.A * 255);
+            }
         }
         chunk.CRC = chunk.CalculateCRC();
 
         PNG_RETURN_IF_NOT_OK(chunk.Write, out);
         PNG_RETURN_IF_NOT_OK(out.Flush);
+
+        // lastAlpha is changed only if cfg.PaletteAlpha is true, so we do not need to check that option
+        if (lastAlpha < tRNS.size()) {
+            tRNS.resize(lastAlpha+1);
+            chunk.Type = ChunkType::tRNS;
+            chunk.Data = std::move(tRNS);
+            chunk.CRC = chunk.CalculateCRC();
+            PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+            PNG_RETURN_IF_NOT_OK(out.Flush);
+        }
     } else PNG_RETURN_IF_NOT_OK(WriteRawPixels, ihdr.ColorType, ihdr.BitDepth, rawImage);
     PNG_RETURN_IF_NOT_OK(rawImage.Close);
 
@@ -916,6 +955,9 @@ PNG::Result PNG::Image::WriteMT(OStream& out, const ExportSettings& cfg) const
         PNG_RETURN_IF_NOT_OK(chunk.Write, out);
         PNG_RETURN_IF_NOT_OK(out.Flush);
 
+        std::vector<uint8_t> tRNS(cfg.Palette->size(), 255);
+        size_t lastAlpha = tRNS.size();
+
         if (ihdr.ColorType == ColorType::PALETTE) {
             PNG_ASSERT(cfg.Palette, "PNG::Image::Write Early palette check failed.");
             chunk.Type = ChunkType::PLTE;
@@ -925,11 +967,25 @@ PNG::Result PNG::Image::WriteMT(OStream& out, const ExportSettings& cfg) const
                 chunk.Data[i*3  ] = (uint8_t)(color.R * 255);
                 chunk.Data[i*3+1] = (uint8_t)(color.G * 255);
                 chunk.Data[i*3+2] = (uint8_t)(color.B * 255);
+                if (cfg.PaletteAlpha && color.A < 1.0) {
+                    lastAlpha = i;
+                    tRNS[i] = (uint8_t)(color.A * 255);
+                }
             }
             chunk.CRC = chunk.CalculateCRC();
 
             PNG_RETURN_IF_NOT_OK(chunk.Write, out);
             PNG_RETURN_IF_NOT_OK(out.Flush);
+
+            // lastAlpha is changed only if cfg.PaletteAlpha is true, so we do not need to check that option
+            if (lastAlpha < tRNS.size()) {
+                tRNS.resize(lastAlpha+1);
+                chunk.Type = ChunkType::tRNS;
+                chunk.Data = std::move(tRNS);
+                chunk.CRC = chunk.CalculateCRC();
+                PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+                PNG_RETURN_IF_NOT_OK(out.Flush);
+            }
         }
     }
 

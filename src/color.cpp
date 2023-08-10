@@ -141,7 +141,7 @@ size_t PNG::FindClosestPaletteColor(const Color& color, const std::vector<Color>
     for (size_t i = 0; i < palette.size(); i++) {
         const Color& pColor = palette[i];
         Color dColor = color - pColor;
-        float dSq = dColor.R * dColor.R + dColor.G * dColor.G + dColor.B * dColor.B;
+        float dSq = dColor.R * dColor.R + dColor.G * dColor.G + dColor.B * dColor.B + dColor.A * dColor.A;
         if (dSq < bestDSq) {
             bestDSq = dSq;
             bestPaletteI = i;
