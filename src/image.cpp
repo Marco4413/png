@@ -6,8 +6,8 @@
 #include <algorithm>
 #include <cmath>
 #include <execution>
+#include <future>
 #include <ranges>
-#include <thread>
 #include <unordered_set>
 
 // This is a macro since both Image::ApplyDithering and Image::WriteDitheredRawPixels need it
@@ -563,8 +563,10 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
     return Result::OK;
 }
 
-PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, std::vector<Color>* paletteOut)
+PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, std::vector<Color>* paletteOut, bool async)
 {
+    auto launchPolicy = async ? std::launch::async : std::launch::deferred;
+
     uint8_t sig[PNG_SIGNATURE_LEN];
     PNG_RETURN_IF_NOT_OK(in.ReadBuffer, sig, PNG_SIGNATURE_LEN);
     if (memcmp(sig, PNG_SIGNATURE, PNG_SIGNATURE_LEN) != 0)
@@ -584,194 +586,47 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, s
         return Result::InvalidImageSize;
 
     // If color has 0 samples per component then it is not valid
-    if (!ColorType::GetSamples(ihdr.ColorType))
-        return Result::InvalidColorType;
-    if (!ColorType::IsValidBitDepth(ihdr.ColorType, ihdr.BitDepth))
-        return Result::InvalidBitDepth;
-
-    std::vector<Color> palette;
-
-    // Vector holding all IDATs (Deflated Image Data)
-    DynamicByteStream idat;
-    std::unordered_set<uint32_t> chunkTypesRead;
-    uint32_t lastChunkType = ChunkType::IHDR;
-
-    do {
-        PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
-        if (chunk.CRC != chunk.CalculateCRC())
-            return Result::CorruptedChunk;
-
-        bool isAux = ChunkType::IsAncillary(chunk.Type);
-
-        switch (chunk.Type) {
-        case ChunkType::IHDR:
-            return Result::IllegalIHDRChunk;
-        case ChunkType::PLTE: {
-            if (chunkTypesRead.contains(ChunkType::PLTE) ||
-                chunkTypesRead.contains(ChunkType::IDAT) ||
-                ihdr.ColorType == ColorType::GRAYSCALE ||
-                ihdr.ColorType == ColorType::GRAYSCALE_ALPHA
-            ) {
-                return Result::IllegalPaletteChunk;
-            } else if (palette.size() > 0)
-                return Result::DuplicatePalette;
-            
-            size_t paletteEntries = chunk.Length() / 3;
-            if (ihdr.ColorType == ColorType::PALETTE &&
-                (paletteEntries == 0 ||
-                paletteEntries > (size_t)1 << ihdr.BitDepth)
-            ) {
-                return Result::InvalidPaletteSize;
-            }
-
-            for (size_t i = 0; i < chunk.Length(); i += 3) {
-                palette.emplace_back(chunk.Data[i]/255.0,
-                    chunk.Data[i+1]/255.0,
-                    chunk.Data[i+2]/255.0);
-            }
-            break;
-        }
-        case ChunkType::IDAT:
-            if (chunkTypesRead.contains(ChunkType::IDAT) &&
-                lastChunkType != ChunkType::IDAT
-            ) {
-                return Result::IllegalIDATChunk;
-            } else if (ihdr.ColorType == ColorType::PALETTE &&
-                !chunkTypesRead.contains(ChunkType::PLTE)
-            ) {
-                return Result::PaletteNotFound;
-            }
-
-            PNG_RETURN_IF_NOT_OK(idat.WriteVector, chunk.Data);
-            PNG_RETURN_IF_NOT_OK(idat.Flush);
-        case ChunkType::IEND:
-            break;
-        case ChunkType::tRNS:
-            if (chunkTypesRead.contains(ChunkType::tRNS) ||
-                chunkTypesRead.contains(ChunkType::IDAT) ||
-                ihdr.ColorType == ColorType::GRAYSCALE_ALPHA ||
-                ihdr.ColorType == ColorType::RGBA
-            ) {
-                return Result::IllegaltRNSChunk;
-            } else if (ihdr.ColorType != ColorType::PALETTE) {
-                PNG_LDEBUGF("PNG::Image::Read tRNS chunk is only supported for Palette color type, got {}.", (size_t)ihdr.ColorType);
-                break;
-            } else if (!chunkTypesRead.contains(ChunkType::PLTE)) {
-                return Result::IllegaltRNSChunk;
-            } else if (chunk.Length() > palette.size())
-                return Result::InvalidtRNSSize;
-
-            for (size_t i = 0; i < chunk.Length(); i++)
-                palette[i].A = (float)(chunk.Data[i] / 255.0);
-            break;
-        default:
-            PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk {:.{}} (0x{:x}).", (char*)&chunk.Type, (int)sizeof(chunk.Type), chunk.Type);
-            if (!isAux)
-                return Result::UnknownNecessaryChunk;
-        }
-
-        chunkTypesRead.insert(chunk.Type);
-        lastChunkType = chunk.Type;
-    } while (chunk.Type != ChunkType::IEND);
-    idat.Close();
-
-    DynamicByteStream intPixels; // Interlaced Pixels
-
-    // Inflating IDAT
-    PNG_RETURN_IF_NOT_OK(DecompressData, ihdr.CompressionMethod, idat, intPixels);
-    intPixels.Close();
-
-    std::vector<uint8_t> rawPixels;
-
     size_t samples = ColorType::GetSamples(ihdr.ColorType);
-    PNG_ASSERT(samples > 0, "PNG::Image::Read Sample count is 0.");
-
-    PNG_RETURN_IF_NOT_OK(DeinterlacePixels, ihdr.InterlaceMethod, ihdr.FilterMethod,
-        ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, intPixels, rawPixels);
-
-    out.SetSize(ihdr.Width, ihdr.Height);
-    PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, &palette, rawPixels);
-
-    if (ihdrOut)
-        *ihdrOut = ihdr;
-    if (paletteOut)
-        *paletteOut = std::move(palette);
-
-    return Result::OK;
-}
-
-PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, std::vector<Color>* paletteOut)
-{
-    uint8_t sig[PNG_SIGNATURE_LEN];
-    PNG_RETURN_IF_NOT_OK(in.ReadBuffer, sig, PNG_SIGNATURE_LEN);
-    if (memcmp(sig, PNG_SIGNATURE, PNG_SIGNATURE_LEN) != 0)
-        return Result::InvalidSignature;
-
-    // Reading IHDR (Image Header)
-    PNG::Chunk chunk;
-    PNG::IHDRChunk ihdr;
-    PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
-    PNG_RETURN_IF_NOT_OK(IHDRChunk::Parse, chunk, ihdr);
-
-    PNG_LDEBUGF("PNG::Image::ReadMT Reading image {}x{} (bd={},ct={},cm={},fm={},im={}).",
-        ihdr.Width, ihdr.Height, ihdr.BitDepth, ihdr.ColorType,
-        ihdr.CompressionMethod, ihdr.FilterMethod, ihdr.InterlaceMethod);
-
-    if (ihdr.Width == 0 || ihdr.Height == 0)
-        return Result::InvalidImageSize;
-
-    // If color has 0 samples per component then it is not valid
-    if (!ColorType::GetSamples(ihdr.ColorType))
+    if (samples == 0)
         return Result::InvalidColorType;
     if (!ColorType::IsValidBitDepth(ihdr.ColorType, ihdr.BitDepth))
         return Result::InvalidBitDepth;
 
     std::vector<Color> palette;
 
+    // Deflated Image Data
     DynamicByteStream idat;
-    Result readerTRes;
-
-    std::thread readerT([&in, &ihdr, &palette, &idat, &readerTRes]() {
+    auto reader = std::async(launchPolicy, [&in, &ihdr, &palette, &idat]() {
         std::unordered_set<uint32_t> chunkTypesRead;
         uint32_t lastChunkType = ChunkType::IHDR;
 
         Chunk chunk;
         do {
-            readerTRes = Chunk::Read(in, chunk);
-            if (readerTRes != Result::OK)
-                return;
-            
-            if (chunk.CRC != chunk.CalculateCRC()) {
-                readerTRes = Result::CorruptedChunk;
-                return;
-            }
+            PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
+            if (chunk.CRC != chunk.CalculateCRC())
+                return Result::CorruptedChunk;
             
             bool isAux = ChunkType::IsAncillary(chunk.Type);
 
             switch (chunk.Type) {
             case ChunkType::IHDR:
-                readerTRes = Result::IllegalIHDRChunk;
-                return;
+                return Result::IllegalIHDRChunk;
             case ChunkType::PLTE: {
                 if (chunkTypesRead.contains(ChunkType::PLTE) ||
                     chunkTypesRead.contains(ChunkType::IDAT) ||
                     ihdr.ColorType == ColorType::GRAYSCALE ||
                     ihdr.ColorType == ColorType::GRAYSCALE_ALPHA
                 ) {
-                    readerTRes = Result::IllegalPaletteChunk;
-                    return;
-                } else if (palette.size() > 0) {
-                    readerTRes = Result::DuplicatePalette;
-                    return;
-                }
+                    return Result::IllegalPaletteChunk;
+                } else if (palette.size() > 0)
+                    return Result::DuplicatePalette;
                 
                 size_t paletteEntries = chunk.Length() / 3;
                 if (ihdr.ColorType == ColorType::PALETTE &&
                     (paletteEntries == 0 ||
                     paletteEntries > (size_t)1 << ihdr.BitDepth)
                 ) {
-                    readerTRes = Result::InvalidPaletteSize;
-                    return;
+                    return Result::InvalidPaletteSize;
                 }
 
                 for (size_t i = 0; i < chunk.Length(); i += 3) {
@@ -785,22 +640,15 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut,
                 if (chunkTypesRead.contains(ChunkType::IDAT) &&
                     lastChunkType != ChunkType::IDAT
                 ) {
-                    readerTRes = Result::IllegalIDATChunk;
-                    return;
+                    return Result::IllegalIDATChunk;
                 } else if (ihdr.ColorType == ColorType::PALETTE &&
                     !chunkTypesRead.contains(ChunkType::PLTE)
                 ) {
-                    readerTRes = Result::PaletteNotFound;
-                    return;
+                    return Result::PaletteNotFound;
                 }
 
-                readerTRes = idat.WriteVector(chunk.Data);
-                if (readerTRes != Result::OK)
-                    return;
-
-                readerTRes = idat.Flush();
-                if (readerTRes != Result::OK)
-                    return;
+                PNG_RETURN_IF_NOT_OK(idat.WriteVector, chunk.Data);
+                PNG_RETURN_IF_NOT_OK(idat.Flush);
             case ChunkType::IEND:
                 break;
             case ChunkType::tRNS:
@@ -809,73 +657,57 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut,
                     ihdr.ColorType == ColorType::GRAYSCALE_ALPHA ||
                     ihdr.ColorType == ColorType::RGBA
                 ) {
-                    readerTRes = Result::IllegaltRNSChunk;
-                    return;
+                    return Result::IllegaltRNSChunk;
                 } else if (ihdr.ColorType != ColorType::PALETTE) {
                     PNG_LDEBUGF("PNG::Image::Read tRNS chunk is only supported for Palette color type, got {}.", (size_t)ihdr.ColorType);
                     break;
                 } else if (!chunkTypesRead.contains(ChunkType::PLTE)) {
-                    readerTRes = Result::IllegaltRNSChunk;
-                    return;
-                } else if (chunk.Length() > palette.size()) {
-                    readerTRes = Result::InvalidtRNSSize;
-                    return;
-                }
+                    return Result::IllegaltRNSChunk;
+                } else if (chunk.Length() > palette.size())
+                    return Result::InvalidtRNSSize;
 
                 for (size_t i = 0; i < chunk.Length(); i++)
                     palette[i].A = (float)(chunk.Data[i] / 255.0);
                 break;
             default:
-                PNG_LDEBUGF("PNG::Image::ReadMT Reading unknown chunk {:.{}} (0x{:x}).", (char*)&chunk.Type, (int)sizeof(chunk.Type), chunk.Type);
-                if (!isAux) {
-                    readerTRes = Result::UnknownNecessaryChunk;
-                    return;
-                }
+                PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk {:.{}} (0x{:x}).", (char*)&chunk.Type, (int)sizeof(chunk.Type), chunk.Type);
+                if (!isAux)
+                    return Result::UnknownNecessaryChunk;
             }
 
             chunkTypesRead.insert(chunk.Type);
             lastChunkType = chunk.Type;
         } while (chunk.Type != ChunkType::IEND);
         // While reading IDATs, PNG::DecompressData can read the buffer in another thread
+        return Result::OK;
     });
 
     DynamicByteStream intPixels; // Interlaced Pixels
-    Result inflaterTRes;
-    std::thread inflaterT([&ihdr, &idat, &intPixels, &inflaterTRes]() {
-        // Inflating IDAT
-        inflaterTRes = DecompressData(ihdr.CompressionMethod, idat, intPixels);
-        // While inflating IDATs, PNG::DeinterlacePixels can execute and
-        //  PNG::Image::LoadRawPixels could read the vector as it gets filled
-    });
+    // Inflating IDAT
+    auto inflater = std::async(launchPolicy, DecompressData, ihdr.CompressionMethod, std::ref(idat), std::ref(intPixels));
+    // While inflating IDATs, PNG::DeinterlacePixels can execute and
+    //  PNG::Image::LoadRawPixels could read the vector as it gets filled
     
     std::vector<uint8_t> rawPixels;
+    auto deinterlacer = std::async(launchPolicy, DeinterlacePixels, ihdr.InterlaceMethod, ihdr.FilterMethod,
+        ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, std::ref(intPixels), std::ref(rawPixels));
 
-    Result deinterlacerTRes;
-    std::thread deinterlacerT([&ihdr, &intPixels, &rawPixels, &deinterlacerTRes]() {
-        size_t samples = ColorType::GetSamples(ihdr.ColorType);
-        PNG_ASSERT(samples > 0, "Sample count is 0.");
-
-        deinterlacerTRes = DeinterlacePixels(ihdr.InterlaceMethod, ihdr.FilterMethod,
-            ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, intPixels, rawPixels);
-    });
-
-    PNG_LDEBUG("PNG::Image::ReadMT Joining IDAT Reader.");
-    readerT.join();
+    PNG_LDEBUG("PNG::Image::Read Waiting for IDAT Reader.");
+    reader.wait();
     idat.Close();
-    PNG_LDEBUG("PNG::Image::ReadMT Joining IDAT Inflater.");
-    inflaterT.join();
+
+    PNG_LDEBUG("PNG::Image::Read Waiting for IDAT Inflater.");
+    inflater.wait();
     intPixels.Close();
-    PNG_LDEBUG("PNG::Image::ReadMT Joining Deinterlacer.");
-    deinterlacerT.join();
 
-    if (readerTRes != Result::OK)
-        return readerTRes;
-    if (inflaterTRes != Result::OK)
-        return inflaterTRes;
-    if (deinterlacerTRes != Result::OK)
-        return deinterlacerTRes;
+    PNG_LDEBUG("PNG::Image::Read Waiting for Deinterlacer.");
+    deinterlacer.wait();
 
-    PNG_LDEBUG("PNG::Image::ReadMT Loading raw pixels into Image.");
+    PNG_RETURN_IF_NOT_OK(reader.get);
+    PNG_RETURN_IF_NOT_OK(inflater.get);
+    PNG_RETURN_IF_NOT_OK(deinterlacer.get);
+
+    PNG_LDEBUG("PNG::Image::Read Loading raw pixels into Image.");
     out.SetSize(ihdr.Width, ihdr.Height);
     PNG_RETURN_IF_NOT_OK(out.LoadRawPixels, ihdr.ColorType, ihdr.BitDepth, &palette, rawPixels);
 
@@ -887,109 +719,10 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut,
     return Result::OK;
 }
 
-PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg) const
+PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg, bool async) const
 {
-    PNG_RETURN_IF_NOT_OK(cfg.Validate);
-    PNG_RETURN_IF_NOT_OK(out.WriteBuffer, PNG_SIGNATURE, PNG_SIGNATURE_LEN);
-    PNG_RETURN_IF_NOT_OK(out.Flush);
+    auto launchPolicy = async ? std::launch::async : std::launch::deferred;
 
-    IHDRChunk ihdr;
-    ihdr.Width = (uint32_t)m_Width;
-    ihdr.Height = (uint32_t)m_Height;
-    ihdr.BitDepth = (uint8_t)cfg.BitDepth;
-    ihdr.ColorType = cfg.ColorType;
-    ihdr.CompressionMethod = CompressionMethod::ZLIB;
-    ihdr.FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
-    ihdr.InterlaceMethod = cfg.InterlaceMethod;
-
-    Chunk chunk;
-    PNG_RETURN_IF_NOT_OK(ihdr.Write, chunk);
-    PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-    PNG_RETURN_IF_NOT_OK(out.Flush);
-
-    DynamicByteStream rawImage;
-    if (ihdr.ColorType == ColorType::PALETTE) {
-        PNG_ASSERT(cfg.Palette, "PNG::Image::Write Early palette check failed.");
-        PNG_RETURN_IF_NOT_OK(WriteDitheredRawPixels, *cfg.Palette, ihdr.BitDepth, cfg.DitheringMethod, rawImage);
-
-        std::vector<uint8_t> tRNS(cfg.Palette->size(), 255);
-        size_t lastAlpha = tRNS.size();
-
-        chunk.Type = ChunkType::PLTE;
-        chunk.Data.resize(cfg.Palette->size() * 3);
-        for (size_t i = 0; i < cfg.Palette->size(); i++) {
-            const Color& color = (*cfg.Palette)[i];
-            chunk.Data[i*3  ] = (uint8_t)(color.R * 255);
-            chunk.Data[i*3+1] = (uint8_t)(color.G * 255);
-            chunk.Data[i*3+2] = (uint8_t)(color.B * 255);
-            if (cfg.PaletteAlpha && color.A < 1.0) {
-                lastAlpha = i;
-                tRNS[i] = (uint8_t)(color.A * 255);
-            }
-        }
-        chunk.CRC = chunk.CalculateCRC();
-
-        PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-        PNG_RETURN_IF_NOT_OK(out.Flush);
-
-        // lastAlpha is changed only if cfg.PaletteAlpha is true, so we do not need to check that option
-        if (lastAlpha < tRNS.size()) {
-            tRNS.resize(lastAlpha+1);
-            chunk.Type = ChunkType::tRNS;
-            chunk.Data = std::move(tRNS);
-            chunk.CRC = chunk.CalculateCRC();
-            PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-            PNG_RETURN_IF_NOT_OK(out.Flush);
-        }
-    } else PNG_RETURN_IF_NOT_OK(WriteRawPixels, ihdr.ColorType, ihdr.BitDepth, rawImage);
-    PNG_RETURN_IF_NOT_OK(rawImage.Close);
-
-    size_t samples = ColorType::GetSamples(cfg.ColorType);
-    PNG_ASSERT(samples, "PNG::Image::Write Early color type check failed.");
-
-    DynamicByteStream inf;
-    PNG_RETURN_IF_NOT_OK(InterlacePixels, ihdr.InterlaceMethod, ihdr.FilterMethod,
-        ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, cfg.CompressionLevel, rawImage, inf);
-    PNG_RETURN_IF_NOT_OK(inf.Close);
-
-    {
-        DynamicByteStream def;
-        PNG_RETURN_IF_NOT_OK(CompressData, ihdr.CompressionMethod, inf, def, cfg.CompressionLevel);
-        PNG_RETURN_IF_NOT_OK(def.Close);
-
-        // Split IDAT chunks
-        chunk.Type = ChunkType::IDAT;
-
-        while (true) {
-            chunk.Data.resize(cfg.IDATSize);
-
-            size_t bRead;
-            auto rres = def.ReadVector(chunk.Data, &bRead);
-            if (rres == Result::EndOfFile)
-                break;
-            else if (rres != Result::OK)
-                return rres;
-
-            chunk.Data.resize(bRead);
-            chunk.CRC = chunk.CalculateCRC();
-
-            PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-            PNG_RETURN_IF_NOT_OK(out.Flush);
-        }
-    }
-
-    chunk.Type = ChunkType::IEND;
-    chunk.Data.resize(0);
-    chunk.CRC = chunk.CalculateCRC();
-
-    PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-    PNG_RETURN_IF_NOT_OK(out.Flush);
-
-    return Result::OK;
-}
-
-PNG::Result PNG::Image::WriteMT(OStream& out, const ExportSettings& cfg) const
-{
     PNG_RETURN_IF_NOT_OK(cfg.Validate);
     PNG_RETURN_IF_NOT_OK(out.WriteBuffer, PNG_SIGNATURE, PNG_SIGNATURE_LEN);
     PNG_RETURN_IF_NOT_OK(out.Flush);
@@ -1009,10 +742,10 @@ PNG::Result PNG::Image::WriteMT(OStream& out, const ExportSettings& cfg) const
         PNG_RETURN_IF_NOT_OK(chunk.Write, out);
         PNG_RETURN_IF_NOT_OK(out.Flush);
 
-        std::vector<uint8_t> tRNS(cfg.Palette->size(), 255);
-        size_t lastAlpha = tRNS.size();
-
         if (ihdr.ColorType == ColorType::PALETTE) {
+            std::vector<uint8_t> tRNS(cfg.Palette->size(), 255);
+            size_t lastAlpha = tRNS.size();
+
             PNG_ASSERT(cfg.Palette, "PNG::Image::Write Early palette check failed.");
             chunk.Type = ChunkType::PLTE;
             chunk.Data.resize(cfg.Palette->size() * 3);
@@ -1044,31 +777,25 @@ PNG::Result PNG::Image::WriteMT(OStream& out, const ExportSettings& cfg) const
     }
 
     DynamicByteStream rawImage;
-    Result rawReaderTRes;
-    std::thread rawReaderT([this, &cfg, &ihdr, &rawImage, &rawReaderTRes]() {
-        if (ihdr.ColorType == ColorType::PALETTE) {
-            PNG_ASSERT(cfg.Palette, "PNG::Image::Write Early palette check failed.");
-            rawReaderTRes = WriteDitheredRawPixels(*cfg.Palette, ihdr.BitDepth, cfg.DitheringMethod, rawImage);
-        } else rawReaderTRes = WriteRawPixels(ihdr.ColorType, ihdr.BitDepth, rawImage);
-    });
+    std::future<Result> rawWriter;
+    if (ihdr.ColorType == ColorType::PALETTE) {
+        PNG_ASSERT(cfg.Palette, "PNG::Image::Write Early palette check failed.");
+        rawWriter = std::async(launchPolicy, &Image::WriteDitheredRawPixels, this, std::ref(*cfg.Palette),
+            (size_t)ihdr.BitDepth, cfg.DitheringMethod, std::ref(rawImage));
+    } else
+        rawWriter = std::async(launchPolicy, &Image::WriteRawPixels, this, ihdr.ColorType, ihdr.BitDepth, std::ref(rawImage));
+
+    size_t samples = ColorType::GetSamples(cfg.ColorType);
+    PNG_ASSERT(samples, "PNG::Image::Write Early color type check failed.");
 
     DynamicByteStream inf;
-    Result interlacerTRes;
-    std::thread interlacerT([&cfg, &ihdr, &rawImage, &inf, &interlacerTRes]() {
-        size_t samples = ColorType::GetSamples(cfg.ColorType);
-        PNG_ASSERT(samples, "PNG::Image::Write Early color type check failed.");
-        interlacerTRes = InterlacePixels(ihdr.InterlaceMethod, ihdr.FilterMethod,
-            ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, cfg.CompressionLevel, rawImage, inf);
-    });
+    auto interlacer = std::async(launchPolicy, InterlacePixels, ihdr.InterlaceMethod, ihdr.FilterMethod,
+            ihdr.Width, ihdr.Height, ihdr.BitDepth, samples, cfg.CompressionLevel, std::ref(rawImage), std::ref(inf));
 
     DynamicByteStream def;
-    Result deflaterTRes;
-    std::thread deflaterT([&cfg, &ihdr, &inf, &def, &deflaterTRes]() {
-        deflaterTRes = CompressData(ihdr.CompressionMethod, inf, def, cfg.CompressionLevel);
-    });
+    auto deflater = std::async(launchPolicy, CompressData, ihdr.CompressionMethod, std::ref(inf), std::ref(def), cfg.CompressionLevel);
 
-    Result idatWriterTRes = Result::OK;
-    std::thread idatWriterT([&cfg, &out, &def, &idatWriterTRes]() {
+    auto idatWriter = std::async(launchPolicy, [&cfg, &out, &def]() {
         // Split IDAT chunks
         Chunk chunk;
         chunk.Type = ChunkType::IDAT;
@@ -1080,40 +807,34 @@ PNG::Result PNG::Image::WriteMT(OStream& out, const ExportSettings& cfg) const
             auto rres = def.ReadVector(chunk.Data, &bRead);
             if (rres == Result::EndOfFile)
                 break;
-            else if (rres != Result::OK) {
-                idatWriterTRes = rres;
-                return;
-            }
+            else if (rres != Result::OK)
+                return rres;
 
             chunk.Data.resize(bRead);
             chunk.CRC = chunk.CalculateCRC();
 
-            idatWriterTRes = chunk.Write(out);
-            if (idatWriterTRes != Result::OK)
-                return;
-
-            idatWriterTRes = out.Flush();
-            if (idatWriterTRes != Result::OK)
-                return;
+            PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+            return out.Flush();
         }
+
+        return Result::OK;
     });
 
-    rawReaderT.join();
+    rawWriter.wait();
     rawImage.Close();
-    interlacerT.join();
-    inf.Close();
-    deflaterT.join();
-    def.Close();
-    idatWriterT.join();
 
-    if (rawReaderTRes != Result::OK)
-        return rawReaderTRes;
-    if (interlacerTRes != Result::OK)
-        return interlacerTRes;
-    if (deflaterTRes != Result::OK)
-        return deflaterTRes;
-    if (idatWriterTRes != Result::OK)
-        return idatWriterTRes;
+    interlacer.wait();
+    inf.Close();
+
+    deflater.wait();
+    def.Close();
+
+    idatWriter.wait();
+
+    PNG_RETURN_IF_NOT_OK(rawWriter.get);
+    PNG_RETURN_IF_NOT_OK(interlacer.get);
+    PNG_RETURN_IF_NOT_OK(deflater.get);
+    PNG_RETURN_IF_NOT_OK(idatWriter.get);
 
     {
         Chunk chunk;

@@ -145,11 +145,17 @@ namespace PNG
         Result WriteDitheredRawPixels(const std::vector<Color>& palette, size_t bitDepth, DitheringMethod ditheringMethod, OStream& out) const;
         Result LoadRawPixels(uint8_t colorType, size_t bitDepth, const std::vector<Color>* palette, const std::vector<uint8_t>& in);
 
-        Result Write(OStream& out, const ExportSettings& cfg = ExportSettings{}) const;
-        Result WriteMT(OStream& out, const ExportSettings& cfg = ExportSettings{}) const;
+        Result Write(OStream& out, const ExportSettings& cfg = ExportSettings{}, bool async = false) const;
+        Result WriteMT(OStream& out, const ExportSettings& cfg = ExportSettings{}) const
+        {
+            return Write(out, cfg, true);
+        }
         
-        static Result Read(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr, std::vector<Color>* paletteOut = nullptr);
-        static Result ReadMT(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr, std::vector<Color>* paletteOut = nullptr);
+        static Result Read(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr, std::vector<Color>* paletteOut = nullptr, bool async = false);
+        static Result ReadMT(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr, std::vector<Color>* paletteOut = nullptr)
+        {
+            return Read(in, out, ihdrOut, paletteOut, true);
+        }
 
     private:
         size_t m_Width = 0;
