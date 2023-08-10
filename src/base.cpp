@@ -37,6 +37,8 @@ const char* PNG::ResultToString(Result res)
         return "UnsupportedColorType";
     case Result::CorruptedChunk:
         return "CorruptedChunk";
+    case Result::IllegalIHDRChunk:
+        return "IllegalIHDRChunk";
     case Result::DuplicatePalette:
         return "DuplicatePalette";
     case Result::IllegalPaletteChunk:
@@ -47,8 +49,12 @@ const char* PNG::ResultToString(Result res)
         return "PaletteNotFound";
     case Result::InvalidPaletteIndex:
         return "InvalidPaletteIndex";
+    case Result::IllegalIDATChunk:
+        return "IllegalIDATChunk";
     case Result::IllegalIDATSize:
         return "IllegalIDATSize";
+    case Result::IllegaltRNSChunk:
+        return "IllegaltRNSChunk";
     case Result::InvalidtRNSSize:
         return "InvalidtRNSSize";
     case Result::UpdatingClosedStreamError:

@@ -8,6 +8,7 @@
 #include <execution>
 #include <ranges>
 #include <thread>
+#include <unordered_set>
 
 // This is a macro since both Image::ApplyDithering and Image::WriteDitheredRawPixels need it
 // https://en.wikipedia.org/wiki/Floyd–Steinberg_dithering
@@ -588,7 +589,8 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, s
 
     // Vector holding all IDATs (Deflated Image Data)
     DynamicByteStream idat;
-    size_t idats = 0;
+    std::unordered_set<uint32_t> chunkTypesRead;
+    uint32_t lastChunkType = ChunkType::IHDR;
 
     do {
         PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
@@ -598,8 +600,12 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, s
         bool isAux = ChunkType::IsAncillary(chunk.Type);
 
         switch (chunk.Type) {
+        case ChunkType::IHDR:
+            return Result::IllegalIHDRChunk;
         case ChunkType::PLTE: {
-            if (idats > 0 || ihdr.ColorType == ColorType::GRAYSCALE ||
+            if (chunkTypesRead.contains(ChunkType::PLTE) ||
+                chunkTypesRead.contains(ChunkType::IDAT) ||
+                ihdr.ColorType == ColorType::GRAYSCALE ||
                 ihdr.ColorType == ColorType::GRAYSCALE_ALPHA
             ) {
                 return Result::IllegalPaletteChunk;
@@ -622,18 +628,32 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, s
             break;
         }
         case ChunkType::IDAT:
-            // TODO: Check if last chunk was IDAT
-            if (ihdr.ColorType == ColorType::PALETTE && palette.size() == 0)
+            if (chunkTypesRead.contains(ChunkType::IDAT) &&
+                lastChunkType != ChunkType::IDAT
+            ) {
+                return Result::IllegalIDATChunk;
+            } else if (ihdr.ColorType == ColorType::PALETTE &&
+                !chunkTypesRead.contains(ChunkType::PLTE)
+            ) {
                 return Result::PaletteNotFound;
+            }
 
             PNG_RETURN_IF_NOT_OK(idat.WriteVector, chunk.Data);
             PNG_RETURN_IF_NOT_OK(idat.Flush);
         case ChunkType::IEND:
             break;
         case ChunkType::tRNS:
-            if (ihdr.ColorType != ColorType::PALETTE) {
-                PNG_LDEBUGF("PNG::Image::Read tRNS chunk is only supported for palette color type, got {}.", (size_t)ihdr.ColorType);
+            if (chunkTypesRead.contains(ChunkType::tRNS) ||
+                chunkTypesRead.contains(ChunkType::IDAT) ||
+                ihdr.ColorType == ColorType::GRAYSCALE_ALPHA ||
+                ihdr.ColorType == ColorType::RGBA
+            ) {
+                return Result::IllegaltRNSChunk;
+            } else if (ihdr.ColorType != ColorType::PALETTE) {
+                PNG_LDEBUGF("PNG::Image::Read tRNS chunk is only supported for Palette color type, got {}.", (size_t)ihdr.ColorType);
                 break;
+            } else if (!chunkTypesRead.contains(ChunkType::PLTE)) {
+                return Result::IllegaltRNSChunk;
             } else if (chunk.Length() > palette.size())
                 return Result::InvalidtRNSSize;
 
@@ -645,6 +665,9 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, s
             if (!isAux)
                 return Result::UnknownNecessaryChunk;
         }
+
+        chunkTypesRead.insert(chunk.Type);
+        lastChunkType = chunk.Type;
     } while (chunk.Type != ChunkType::IEND);
     idat.Close();
 
@@ -705,7 +728,8 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut,
     Result readerTRes;
 
     std::thread readerT([&in, &ihdr, &palette, &idat, &readerTRes]() {
-        size_t idats = 0;
+        std::unordered_set<uint32_t> chunkTypesRead;
+        uint32_t lastChunkType = ChunkType::IHDR;
 
         Chunk chunk;
         do {
@@ -721,8 +745,13 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut,
             bool isAux = ChunkType::IsAncillary(chunk.Type);
 
             switch (chunk.Type) {
+            case ChunkType::IHDR:
+                readerTRes = Result::IllegalIHDRChunk;
+                return;
             case ChunkType::PLTE: {
-                if (idats > 0 || ihdr.ColorType == ColorType::GRAYSCALE ||
+                if (chunkTypesRead.contains(ChunkType::PLTE) ||
+                    chunkTypesRead.contains(ChunkType::IDAT) ||
+                    ihdr.ColorType == ColorType::GRAYSCALE ||
                     ihdr.ColorType == ColorType::GRAYSCALE_ALPHA
                 ) {
                     readerTRes = Result::IllegalPaletteChunk;
@@ -749,8 +778,14 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut,
                 break;
             }
             case ChunkType::IDAT:
-                // TODO: Check if last chunk was IDAT
-                if (ihdr.ColorType == ColorType::PALETTE && palette.size() == 0) {
+                if (chunkTypesRead.contains(ChunkType::IDAT) &&
+                    lastChunkType != ChunkType::IDAT
+                ) {
+                    readerTRes = Result::IllegalIDATChunk;
+                    return;
+                } else if (ihdr.ColorType == ColorType::PALETTE &&
+                    !chunkTypesRead.contains(ChunkType::PLTE)
+                ) {
                     readerTRes = Result::PaletteNotFound;
                     return;
                 }
@@ -762,14 +797,22 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut,
                 readerTRes = idat.Flush();
                 if (readerTRes != Result::OK)
                     return;
-
-                idats++;
             case ChunkType::IEND:
                 break;
             case ChunkType::tRNS:
-                if (ihdr.ColorType != ColorType::PALETTE) {
+                if (chunkTypesRead.contains(ChunkType::tRNS) ||
+                    chunkTypesRead.contains(ChunkType::IDAT) ||
+                    ihdr.ColorType == ColorType::GRAYSCALE_ALPHA ||
+                    ihdr.ColorType == ColorType::RGBA
+                ) {
+                    readerTRes = Result::IllegaltRNSChunk;
+                    return;
+                } else if (ihdr.ColorType != ColorType::PALETTE) {
                     PNG_LDEBUGF("PNG::Image::Read tRNS chunk is only supported for Palette color type, got {}.", (size_t)ihdr.ColorType);
                     break;
+                } else if (!chunkTypesRead.contains(ChunkType::PLTE)) {
+                    readerTRes = Result::IllegaltRNSChunk;
+                    return;
                 } else if (chunk.Length() > palette.size()) {
                     readerTRes = Result::InvalidtRNSSize;
                     return;
@@ -785,6 +828,9 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut,
                     return;
                 }
             }
+
+            chunkTypesRead.insert(chunk.Type);
+            lastChunkType = chunk.Type;
         } while (chunk.Type != ChunkType::IEND);
         // While reading IDATs, PNG::DecompressData can read the buffer in another thread
     });
