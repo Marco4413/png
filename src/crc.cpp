@@ -7,7 +7,7 @@ const PNG::CRC PNG::CRC::m_Instance = PNG::CRC();
 
 PNG::CRC::CRC()
 {
-    for (size_t n = 0; n < 256; n++) {
+    for (uint32_t n = 0; n < 256; n++) {
         uint32_t c = n;
         for (size_t k = 0; k < 8; k++) {
             if (c & 1)
