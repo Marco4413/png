@@ -352,7 +352,8 @@ void PNG::Image::SetSize(size_t width, size_t height)
 
     m_Width = width;
     m_Height = height;
-    m_Pixels = new Color[width * height];
+    // Using calloc to initialize memory as 0, so that Pixels have an alpha of 0
+    m_Pixels = (Color*)calloc(width * height, sizeof(Color));
 }
 
 PNG::ConstImageRowView PNG::Image::GetRow(size_t y, int64_t dy, WrapMode wrapMode) const { PNG_IMAGE_GET_ROW(ConstImageRowView) }
