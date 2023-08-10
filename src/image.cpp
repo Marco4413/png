@@ -237,7 +237,7 @@ void PNG::Image::ApplyKernel(const Kernel& kernel, WrapMode wrapMode)
     auto imgHeight = std::ranges::iota_view((size_t)0, m_Height);
     std::for_each(std::execution::seq, imgHeight.begin(), imgHeight.end(), [this, &kernel, &src, wrapMode](size_t y) {
         for (size_t x = 0; x < m_Width; x++) {
-            Color finalColor(0.0);
+            Color finalColor(0.0, 0.0);
             for (size_t kY = 0; kY < kernel.Height; kY++) {
                 const ConstImageRowView row = src.GetRow(y, (int64_t)kY - (int64_t)kernel.AnchorY, wrapMode);
                 if (!row)
