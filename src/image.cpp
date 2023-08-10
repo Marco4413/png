@@ -327,20 +327,24 @@ void PNG::Image::ApplyGaussianBlur(double stDev, double radius, WrapMode wrapMod
 }
 
 // https://en.wikipedia.org/wiki/Unsharp_masking
-void PNG::Image::ApplySharpening(double amount, WrapMode wrapMode)
+void PNG::Image::ApplySharpening(double amount, double radius, double threshold, WrapMode wrapMode)
 {
-    // Side multiplier
-    const double smul = -1.0;
-    // Center multiplier
-    const double cmul = 1.0 + (1.0 - 1.0 / amount) * amount;
+    Image blurred = *this;
+    blurred.ApplyGaussianBlur(radius / 3.0, radius, wrapMode);
 
-    const Kernel kernel(3, 3, {
-         0.0, smul,  0.0,
-        smul, cmul, smul,
-         0.0, smul,  0.0,
+    double threshold2 = threshold * threshold;
+
+    auto imgHeight = std::ranges::iota_view((size_t)0, m_Height);
+    std::for_each(std::execution::seq, imgHeight.begin(), imgHeight.end(), [this, &blurred, amount, threshold2](size_t y) {
+        for (size_t x = 0; x < m_Width; x++) {
+            Color colorDiff = (*this)[y][x] - blurred[y][x];
+            double scalarDiff = colorDiff.R * colorDiff.R + colorDiff.G * colorDiff.G + colorDiff.B * colorDiff.B + colorDiff.A * colorDiff.A;
+            if (scalarDiff < threshold2)
+                continue;
+            (*this)[y][x] += colorDiff * amount;
+            (*this)[y][x].Clamp();
+        }
     });
-
-    ApplyKernel(kernel, wrapMode);
 }
 
 void PNG::Image::SetSize(size_t width, size_t height)

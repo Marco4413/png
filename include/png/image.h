@@ -110,7 +110,7 @@ namespace PNG
         void ApplyGaussianBlur(double stDev, WrapMode wrapMode = WrapMode::None) { ApplyGaussianBlur(stDev, 3 * stDev, wrapMode); }
         void ApplyGaussianBlur(double stDev, double radius, WrapMode wrapMode = WrapMode::None);
         
-        void ApplySharpening(double amount = 5.0f, WrapMode wrapMode = WrapMode::None);
+        void ApplySharpening(double amount, double radius = 1.5, double threshold = 0.0, WrapMode wrapMode = WrapMode::None);
 
         void SetSize(size_t width, size_t height);
         inline void Clear() { SetSize(0, 0); }
