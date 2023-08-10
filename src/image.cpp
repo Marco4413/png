@@ -554,7 +554,7 @@ PNG::Result PNG::Image::WriteDitheredRawPixels(const std::vector<Color>& palette
     return Result::OK;
 }
 
-PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
+PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, std::vector<Color>* paletteOut)
 {
     uint8_t sig[PNG_SIGNATURE_LEN];
     PNG_RETURN_IF_NOT_OK(in.ReadBuffer, sig, PNG_SIGNATURE_LEN);
@@ -653,11 +653,13 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
 
     if (ihdrOut)
         *ihdrOut = ihdr;
+    if (paletteOut)
+        *paletteOut = std::move(palette);
 
     return Result::OK;
 }
 
-PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
+PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, std::vector<Color>* paletteOut)
 {
     uint8_t sig[PNG_SIGNATURE_LEN];
     PNG_RETURN_IF_NOT_OK(in.ReadBuffer, sig, PNG_SIGNATURE_LEN);
@@ -803,6 +805,8 @@ PNG::Result PNG::Image::ReadMT(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut)
 
     if (ihdrOut)
         *ihdrOut = ihdr;
+    if (paletteOut)
+        *paletteOut = std::move(palette);
 
     return Result::OK;
 }

@@ -147,8 +147,8 @@ namespace PNG
         Result Write(OStream& out, const ExportSettings& cfg = ExportSettings{}) const;
         Result WriteMT(OStream& out, const ExportSettings& cfg = ExportSettings{}) const;
         
-        static Result Read(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr);
-        static Result ReadMT(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr);
+        static Result Read(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr, std::vector<Color>* paletteOut = nullptr);
+        static Result ReadMT(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr, std::vector<Color>* paletteOut = nullptr);
 
     private:
         size_t m_Width = 0;
