@@ -231,6 +231,9 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
 
 void PNG::Image::ApplyKernel(const Kernel& kernel, WrapMode wrapMode)
 {
+    if (!kernel.Data)
+        return;
+
     const Image src(std::move(*this));
     SetSize(src.m_Width, src.m_Height);
 
