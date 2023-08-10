@@ -239,7 +239,7 @@ void PNG::Image::ApplyKernel(const Kernel& kernel, WrapMode wrapMode)
     SetSize(src.m_Width, src.m_Height);
 
     auto imgHeight = std::ranges::iota_view((size_t)0, m_Height);
-    std::for_each(std::execution::seq, imgHeight.begin(), imgHeight.end(), [this, &kernel, &src, wrapMode](size_t y) {
+    std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, &kernel, &src, wrapMode](size_t y) {
         for (size_t x = 0; x < m_Width; x++) {
             Color finalColor(0.0, 0.0);
             for (size_t kY = 0; kY < kernel.Height; kY++) {
@@ -335,7 +335,7 @@ void PNG::Image::ApplySharpening(double amount, double radius, double threshold,
     double threshold2 = threshold * threshold;
 
     auto imgHeight = std::ranges::iota_view((size_t)0, m_Height);
-    std::for_each(std::execution::seq, imgHeight.begin(), imgHeight.end(), [this, &blurred, amount, threshold2](size_t y) {
+    std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, &blurred, amount, threshold2](size_t y) {
         for (size_t x = 0; x < m_Width; x++) {
             Color colorDiff = (*this)[y][x] - blurred[y][x];
             double scalarDiff = colorDiff.R * colorDiff.R + colorDiff.G * colorDiff.G + colorDiff.B * colorDiff.B + colorDiff.A * colorDiff.A;
