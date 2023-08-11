@@ -670,7 +670,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, IHDRChunk* ihdrOut, s
                     palette[i].A = (float)(chunk.Data[i] / 255.0);
                 break;
             default:
-                PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk {:.{}} (0x{:x}).", (char*)&chunk.Type, (int)sizeof(chunk.Type), chunk.Type);
+                PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk {:.4} (0x{:x}).", (char*)&chunk.Type, chunk.Type);
                 if (!isAux)
                     return Result::UnknownNecessaryChunk;
             }
