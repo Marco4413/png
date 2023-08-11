@@ -14,5 +14,6 @@
 #include "png/kernel.h"
 #include "png/palette.h"
 #include "png/stream.h"
+#include "png/utils.h"
 
 #endif // _PNG_H
