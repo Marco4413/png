@@ -2,12 +2,12 @@
 
 #include "png/chunk.h"
 #include "png/filter.h"
+#include "png/utils.h"
 
 #include <algorithm>
 #include <cmath>
 #include <execution>
 #include <future>
-#include <ranges>
 #include <unordered_set>
 
 // This is a macro since both Image::ApplyDithering and Image::WriteDitheredRawPixels need it
@@ -238,7 +238,7 @@ void PNG::Image::ApplyKernel(const Kernel& kernel, WrapMode wrapMode)
     const Image src(std::move(*this));
     SetSize(src.m_Width, src.m_Height);
 
-    auto imgHeight = std::ranges::iota_view((size_t)0, m_Height);
+    Utils::Iota<size_t> imgHeight(0, m_Height);
     std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, &kernel, &src, wrapMode](size_t y) {
         for (size_t x = 0; x < m_Width; x++) {
             Color finalColor(0.0, 0.0);
@@ -334,7 +334,7 @@ void PNG::Image::ApplySharpening(double amount, double radius, double threshold,
 
     double threshold2 = threshold * threshold;
 
-    auto imgHeight = std::ranges::iota_view((size_t)0, m_Height);
+    Utils::Iota<size_t> imgHeight(0, m_Height);
     std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, &blurred, amount, threshold2](size_t y) {
         for (size_t x = 0; x < m_Width; x++) {
             Color colorDiff = (*this)[y][x] - blurred[y][x];
