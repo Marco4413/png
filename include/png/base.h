@@ -3,8 +3,7 @@
 #ifndef _PNG_BASE_H
 #define _PNG_BASE_H
 
-#include <inttypes.h>
-
+#include <cinttypes>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
