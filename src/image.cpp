@@ -814,7 +814,7 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg, bool asyn
             chunk.CRC = chunk.CalculateCRC();
 
             PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-            return out.Flush();
+            PNG_RETURN_IF_NOT_OK(out.Flush);
         }
 
         return Result::OK;
