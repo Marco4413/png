@@ -132,7 +132,7 @@ PNG::Color PNG::Color::operator/(float n) const
     return Color(R / n, G / n, B / n, A / n);
 }
 
-size_t PNG::FindClosestPaletteColor(const Color& color, const std::vector<Color>& palette)
+size_t PNG::FindClosestPaletteColor(const Color& color, const Palette_T& palette)
 {
     PNG_ASSERT(palette.size() > 0, "PNG::FindClosestPaletteColor Palette size is 0.");
     float bestDSq = std::numeric_limits<float>::max();

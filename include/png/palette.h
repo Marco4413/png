@@ -14,7 +14,7 @@ namespace PNG
 
         // https://en.wikipedia.org/wiki/Web_colors#Web-safe_colors
         const size_t WEB_SAFE_BIT_DEPTH = 8;
-        const std::vector<Color> WEB_SAFE {
+        const Palette_T WEB_SAFE {
             Color(0.0, 0.0, 0.0), Color(0.2, 0.0, 0.0), Color(0.4, 0.0, 0.0), Color(0.6, 0.0, 0.0), Color(0.8, 0.0, 0.0), Color(1.0, 0.0, 0.0),
             Color(0.0, 0.0, 0.2), Color(0.2, 0.0, 0.2), Color(0.4, 0.0, 0.2), Color(0.6, 0.0, 0.2), Color(0.8, 0.0, 0.2), Color(1.0, 0.0, 0.2),
             Color(0.0, 0.0, 0.4), Color(0.2, 0.0, 0.4), Color(0.4, 0.0, 0.4), Color(0.6, 0.0, 0.4), Color(0.8, 0.0, 0.4), Color(1.0, 0.0, 0.4),
@@ -54,7 +54,7 @@ namespace PNG
         };
 
         const size_t WEB_SAFEST_BIT_DEPTH = 8;
-        const std::vector<Color> WEB_SAFEST {
+        const Palette_T WEB_SAFEST {
             Color(0.0, 0.0, 0.0), Color(1.0, 0.0, 0.0),
             Color(0.0, 0.0, 0.2), Color(1.0, 0.0, 0.2),
             Color(0.0, 0.0, 1.0), Color(1.0, 0.0, 1.0),
@@ -66,10 +66,10 @@ namespace PNG
         };
 
         const size_t GRAY2_BIT_DEPTH = 1;
-        const std::vector<Color> GRAY2 { Color(0.0), Color(1.0), };
+        const Palette_T GRAY2 { Color(0.0), Color(1.0), };
 
         const size_t GRAY4_BIT_DEPTH = 2;
-        const std::vector<Color> GRAY4 { Color(0.0), Color(1/3.0), Color(2/3.0), Color(1.0), };
+        const Palette_T GRAY4 { Color(0.0), Color(1/3.0), Color(2/3.0), Color(1.0), };
     }
 }
 

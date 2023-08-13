@@ -26,14 +26,14 @@ namespace PNG
     struct ImportSettings
     {
         IHDRChunk* IHDROut = nullptr;
-        std::vector<Color>* PaletteOut = nullptr;
+        Palette_T* PaletteOut = nullptr;
     };
 
     struct ExportSettings
     {
         uint8_t ColorType = PNG::ColorType::RGBA;
         size_t BitDepth = 8;
-        const std::vector<Color>* Palette = nullptr;
+        const Palette_T* Palette = nullptr;
         bool PaletteAlpha = false;
         PNG::DitheringMethod DitheringMethod = PNG::DitheringMethod::None;
         PNG::CompressionLevel CompressionLevel = PNG::CompressionLevel::Default;
@@ -110,7 +110,7 @@ namespace PNG
         void Resize(size_t width, size_t height, ScalingMethod scalingMethod = ScalingMethod::Nearest);
 
         void ApplyKernel(const Kernel& kernel, WrapMode wrapMode = WrapMode::None);
-        void ApplyDithering(const std::vector<Color>& palette, DitheringMethod ditheringMethod);
+        void ApplyDithering(const Palette_T& palette, DitheringMethod ditheringMethod);
         void ApplyGrayscale();
 
         void ApplyGaussianBlur(double stDev, WrapMode wrapMode = WrapMode::None) { ApplyGaussianBlur(stDev, 3 * stDev, wrapMode); }
@@ -148,8 +148,8 @@ namespace PNG
         }
         
         Result WriteRawPixels(uint8_t colorType, size_t bitDepth, OStream& out) const;
-        Result WriteDitheredRawPixels(const std::vector<Color>& palette, size_t bitDepth, DitheringMethod ditheringMethod, OStream& out) const;
-        Result LoadRawPixels(uint8_t colorType, size_t bitDepth, const std::vector<Color>* palette, const std::vector<uint8_t>& in);
+        Result WriteDitheredRawPixels(const Palette_T& palette, size_t bitDepth, DitheringMethod ditheringMethod, OStream& out) const;
+        Result LoadRawPixels(uint8_t colorType, size_t bitDepth, const Palette_T* palette, const std::vector<uint8_t>& in);
 
         Result Write(OStream& out, const ExportSettings& cfg = ExportSettings{}, bool async = false) const;
         Result WriteMT(OStream& out, const ExportSettings& cfg = ExportSettings{}) const

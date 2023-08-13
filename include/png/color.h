@@ -7,6 +7,9 @@
 
 namespace PNG
 {
+    struct Color; // Forward Declaration
+    using Palette_T = std::vector<Color>;
+
     namespace ColorType
     {
         bool IsValidBitDepth(uint8_t colorType, size_t bitDepth);
@@ -79,7 +82,7 @@ namespace PNG
         Color operator/(double n) const { return (*this) / (float)n; }
     };
 
-    size_t FindClosestPaletteColor(const Color& color, const std::vector<Color>& palette);
+    size_t FindClosestPaletteColor(const Color& color, const Palette_T& palette);
 }
 
 #endif // _PNG_COLOR_H
