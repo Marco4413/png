@@ -23,6 +23,12 @@ namespace PNG
         None, Floyd, Atkinson
     };
 
+    struct ImportSettings
+    {
+        IHDRChunk* IHDROut = nullptr;
+        std::vector<Color>* PaletteOut = nullptr;
+    };
+
     struct ExportSettings
     {
         uint8_t ColorType = PNG::ColorType::RGBA;
@@ -151,10 +157,10 @@ namespace PNG
             return Write(out, cfg, true);
         }
         
-        static Result Read(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr, std::vector<Color>* paletteOut = nullptr, bool async = false);
-        static Result ReadMT(IStream& in, Image& out, IHDRChunk* ihdrOut = nullptr, std::vector<Color>* paletteOut = nullptr)
+        static Result Read(IStream& in, Image& out, const ImportSettings& cfg = ImportSettings{}, bool async = false);
+        static Result ReadMT(IStream& in, Image& out, const ImportSettings& cfg = ImportSettings{})
         {
-            return Read(in, out, ihdrOut, paletteOut, true);
+            return Read(in, out, cfg, true);
         }
 
     private:
