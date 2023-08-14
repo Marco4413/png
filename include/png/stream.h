@@ -28,6 +28,20 @@ namespace PNG
         /// @see PNG::IStream::ReadBuffer()
         virtual Result ReadVector(std::vector<uint8_t>& vec, size_t* bytesRead = nullptr) { return ReadBuffer(vec.data(), vec.size(), bytesRead); }
 
+        /// Reads a NULL-terminated string.
+        virtual Result ReadString(std::string& out)
+        {
+            out.resize(0);
+            char ch = '\0';
+            while (true) {
+                PNG_RETURN_IF_NOT_OK(ReadBuffer, &ch, 1);
+                if (ch == '\0')
+                    break;
+                out += ch;
+            }
+            return Result::OK;
+        }
+
         template<typename T>
         Result ReadNumber(T& out)
         {
@@ -60,6 +74,14 @@ namespace PNG
         
         /// @see PNG::OStream::WriteBuffer()
         virtual Result WriteVector(const std::vector<uint8_t>& vec) { return WriteBuffer(vec.data(), vec.size()); }
+
+        /// Writes the contents of a string and adds NULL at the end.
+        virtual Result WriteString(const std::string& str)
+        {
+            PNG_RETURN_IF_NOT_OK(WriteBuffer, str.data(), str.length());
+            const char null = '\0';
+            return WriteBuffer(&null, 1);
+        }
 
         /**
          * @brief Tells the stream that what was previously written to it can be moved from the staging buffer into the underlying buffer.
@@ -133,6 +155,15 @@ namespace PNG
         
         /// @see PNG::IStream::ReadBuffer()
         virtual Result ReadBuffer(void* buf, size_t bufLen, size_t* bytesRead = nullptr) override;
+        /// @see PNG::IStream::ReadString()
+        virtual Result ReadString(std::string& out) override;
+        // Since ByteStream does not get filled with new data, this method can implemented in a more optimized way.
+
+        size_t GetAvailable()
+        {
+            std::lock_guard<std::mutex> lock(m_Mutex);
+            return m_BufferLen - m_ReadCursor;
+        }
 
     protected:
         char* m_Buffer;
@@ -160,16 +191,16 @@ namespace PNG
         /// @see PNG::OStream::Flush()
         virtual Result Flush() override;
 
-        bool IsClosed() const { return m_Closed; }
-        virtual Result Close();
-
-    protected:
         size_t GetAvailable()
         {
             std::lock_guard<std::mutex> lock(m_IMutex);
             return m_IBuffer.size() - m_ICursor;
         }
 
+        bool IsClosed() const { return m_Closed; }
+        Result Close();
+
+    protected:
         void TrimInputBuffer();
 
         std::vector<uint8_t> m_OBuffer;

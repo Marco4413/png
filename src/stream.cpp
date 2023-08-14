@@ -65,6 +65,21 @@ PNG::Result PNG::ByteStream::ReadBuffer(void* buf, size_t bufLen, size_t* bytesR
     return PNG::Result::OK;
 }
 
+PNG::Result PNG::ByteStream::ReadString(std::string& out)
+{
+    std::lock_guard<std::mutex> lock(m_Mutex);
+    out.resize(0);
+    for (; m_ReadCursor < m_BufferLen; m_ReadCursor++) {
+        if (m_Buffer[m_ReadCursor] == '\0') {
+            m_ReadCursor++; // Consume NULL character
+            return Result::OK;
+        }
+        out += m_Buffer[m_ReadCursor];
+    }
+    // No NULL-termination character
+    return Result::UnexpectedEOF;
+}
+
 PNG::Result PNG::DynamicByteStream::ReadBuffer(void* buf, size_t bufLen, size_t* bytesRead)
 {
     // If bytesRead is not nullptr then the caller wants to receive a variable amount of bytes
