@@ -58,9 +58,15 @@ int main(int argc, char** argv)
         ASSERT_OK(PNG::Image::ReadMT, inFile, img);
     });
 
-    // img.Resize(img.GetWidth() * 2, img.GetHeight() * 2, PNG::ScalingMethod::Bilinear);
-    
+    // A list of keywords can be found at http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html#C.Anc-text
+    PNG::Metadata_T metadata;
+    metadata.emplace_back(PNG::TextualData {
+        .Keyword = "Software",
+        .Text = "https://github.com/Marco4413/png",
+    });
+
     const PNG::ExportSettings exportSettings {
+        .Metadata = &metadata,
         .ColorType = PNG::ColorType::RGBA,
         .BitDepth = 8,
         .Palette = nullptr,

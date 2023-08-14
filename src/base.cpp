@@ -57,6 +57,8 @@ const char* PNG::ResultToString(Result res)
         return "IllegaltRNSChunk";
     case Result::InvalidtRNSSize:
         return "InvalidtRNSSize";
+    case Result::InvalidTextualDataKeywordSize:
+        return "InvalidTextualDataKeywordSize";
     case Result::UpdatingClosedStreamError:
         return "UpdatingClosedStreamError";
     case Result::ZLib_NotAvailable:

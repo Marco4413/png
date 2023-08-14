@@ -596,7 +596,7 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, const ImportSettings&
 
     // Deflated Image Data
     DynamicByteStream idat;
-    auto reader = std::async(launchPolicy, [&in, &ihdr, &palette, &idat]() {
+    auto reader = std::async(launchPolicy, [&in, &cfg, &ihdr, &palette, &idat]() {
         std::unordered_set<uint32_t> chunkTypesRead;
         uint32_t lastChunkType = ChunkType::IHDR;
 
@@ -669,12 +669,26 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, const ImportSettings&
                 for (size_t i = 0; i < chunk.Length(); i++)
                     palette[i].A = (float)(chunk.Data[i] / 255.0);
                 break;
+            case ChunkType::tEXt:
+            case ChunkType::zTXt:
+            case ChunkType::iTXt: {
+                if (!cfg.MetadataOut)
+                    break;
+                TextualData data;
+                PNG_RETURN_IF_NOT_OK(TextualData::Parse, chunk, data);
+                cfg.MetadataOut->push_back(std::move(data));
+                break;
+            }
             default:
                 PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk {:.4} (0x{:x}).", (char*)&chunk.Type, chunk.Type);
                 if (!isAux)
                     return Result::UnknownNecessaryChunk;
             }
-
+#ifdef PNG_DEBUG
+            // Write IDAT only once
+            if (chunk.Type != ChunkType::IDAT || !chunkTypesRead.contains(chunk.Type))
+                PNG_LDEBUGF("PNG::Image::Read Read chunk {:.4} (0x{:x}).", (char*)&chunk.Type, chunk.Type);
+#endif // PNG_DEBUG
             chunkTypesRead.insert(chunk.Type);
             lastChunkType = chunk.Type;
         } while (chunk.Type != ChunkType::IEND);
@@ -741,6 +755,15 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg, bool asyn
         PNG_RETURN_IF_NOT_OK(ihdr.Write, chunk);
         PNG_RETURN_IF_NOT_OK(chunk.Write, out);
         PNG_RETURN_IF_NOT_OK(out.Flush);
+
+        if (cfg.Metadata) {
+            for (size_t i = 0; i < cfg.Metadata->size(); i++) {
+                const TextualData& textualData = (*cfg.Metadata)[i];
+                PNG_RETURN_IF_NOT_OK(textualData.Write, chunk, cfg.CompressionLevel);
+                PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+                PNG_RETURN_IF_NOT_OK(out.Flush);
+            }
+        }
 
         if (ihdr.ColorType == ColorType::PALETTE) {
             std::vector<uint8_t> tRNS(cfg.Palette->size(), 255);

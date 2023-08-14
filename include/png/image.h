@@ -27,10 +27,12 @@ namespace PNG
     {
         IHDRChunk* IHDROut = nullptr;
         Palette_T* PaletteOut = nullptr;
+        Metadata_T* MetadataOut = nullptr;
     };
 
     struct ExportSettings
     {
+        Metadata_T* Metadata = nullptr;
         uint8_t ColorType = PNG::ColorType::RGBA;
         size_t BitDepth = 8;
         const Palette_T* Palette = nullptr;

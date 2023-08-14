@@ -4,10 +4,14 @@
 #define _PNG_CHUNK_H
 
 #include "png/base.h"
+#include "png/compression.h"
 #include "png/stream.h"
 
 namespace PNG
 {
+    class TextualData; // Forward Declaration
+    using Metadata_T = std::vector<TextualData>;
+
     namespace ChunkType
     {
         inline bool IsAncillary(uint32_t chunkType)  { return (chunkType & 0x20000000) != 0; }
@@ -21,6 +25,10 @@ namespace PNG
         const uint32_t IEND = 0x49454e44;
 
         const uint32_t tRNS = 0x74524e53;
+
+        const uint32_t tEXt = 0x74455874;
+        const uint32_t iTXt = 0x69545874;
+        const uint32_t zTXt = 0x7a545874;
     }
 
     class Chunk
@@ -57,6 +65,19 @@ namespace PNG
     
         static Result Parse(const Chunk& chunk, IHDRChunk& ihdr);
         Result Write(Chunk& chunk) const;
+    };
+
+    struct TextualData
+    {
+        std::string Keyword = "";
+        std::string LanguageTag = "";
+        std::string TranslatedKeyword = "";
+        std::string Text = "";
+        bool IsUTF8 = false;
+
+        Result Validate() const;
+        static Result Parse(const Chunk& chunk, TextualData& ihdr);
+        Result Write(Chunk& chunk, CompressionLevel compressionLevel = CompressionLevel::Default) const;
     };
 }
 

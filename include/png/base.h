@@ -103,6 +103,7 @@ namespace PNG
         IllegalIDATSize,
         IllegaltRNSChunk,
         InvalidtRNSSize,
+        InvalidTextualDataKeywordSize,
         UpdatingClosedStreamError,
         ZLib_NotAvailable,
         ZLib_DataError,
