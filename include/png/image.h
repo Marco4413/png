@@ -120,6 +120,12 @@ namespace PNG
         
         void ApplySharpening(double amount, double radius = 1.5, double threshold = 0.0, WrapMode wrapMode = WrapMode::None);
 
+        void ApplyVerticalFlip();
+        void ApplyHorizontalFlip();
+
+        void ApplyRotation90(bool clockwise = false);
+        void ApplyRotation180();
+
         void SetSize(size_t width, size_t height);
         inline void Clear() { SetSize(0, 0); }
 

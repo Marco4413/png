@@ -347,6 +347,75 @@ void PNG::Image::ApplySharpening(double amount, double radius, double threshold,
     });
 }
 
+void PNG::Image::ApplyVerticalFlip()
+{
+    Utils::Iota<size_t> imgHalfHeight(0, m_Height/2);
+    std::for_each(std::execution::par_unseq, imgHalfHeight.begin(), imgHalfHeight.end(), [this](size_t y) {
+        Color* topRow = (*this)[y];
+        Color* botRow = (*this)[m_Height-y-1];
+        for (size_t x = 0; x < m_Width; x++) {
+            Color topColor = topRow[x];
+            Color& botColor = botRow[x];
+            topRow[x] = botColor;
+            botColor = topColor;
+        }
+    });
+}
+
+void PNG::Image::ApplyHorizontalFlip()
+{
+    Utils::Iota<size_t> imgHeight(0, m_Height);
+    std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this](size_t y) {
+        Color* row = (*this)[y];
+        for (size_t x = 0; x < m_Width/2; x++) {
+            Color leftColor = row[x];
+            Color& rightColor = row[m_Width-x-1];
+            row[x] = rightColor;
+            rightColor = leftColor;
+        }
+    });
+}
+
+void PNG::Image::ApplyRotation90(bool clockwise)
+{
+    Image rotated(m_Height, m_Width);
+
+    Utils::Iota<size_t> imgHeight(0, m_Height);
+    std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, clockwise, &rotated](size_t y) {
+        if (clockwise) {
+            for (size_t x = 0; x < m_Width; x++) {
+                const Color& color = (*this)[y][x];
+                rotated[x][m_Height-y-1] = color;
+            }
+        } else {
+            for (size_t x = 0; x < m_Width; x++) {
+                const Color& color = (*this)[y][x];
+                rotated[m_Width-x-1][y] = color;
+            }
+        }
+    });
+
+    *this = std::move(rotated);
+}
+
+void PNG::Image::ApplyRotation180()
+{
+    // Half height is rounded up
+    Utils::Iota<size_t> imgHalfHeight(0, m_Height/2 + (m_Height & 1));
+    std::for_each(std::execution::par_unseq, imgHalfHeight.begin(), imgHalfHeight.end(), [this](size_t y) {
+        Color* topRow = (*this)[y];
+        Color* botRow = (*this)[m_Height-y-1];
+        // If we're on the mid scanline, we just need to iterate half the line
+        size_t scanlineWidth = topRow == botRow ? m_Width / 2 : m_Width;
+        for (size_t x = 0; x < scanlineWidth; x++) {
+            Color topColor = topRow[x];
+            Color& botColor = botRow[m_Width-x-1];
+            topRow[x] = botColor;
+            botColor = topColor;
+        }
+    });
+}
+
 void PNG::Image::SetSize(size_t width, size_t height)
 {
     delete[] m_Pixels;
