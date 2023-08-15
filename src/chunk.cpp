@@ -1,5 +1,13 @@
 #include "png/chunk.h"
 
+#ifdef _MSC_VER
+// Disable MSC C4996 Warning for std::gmtime
+#pragma warning ( disable : 4996 )
+#endif
+
+#include <chrono>
+#include <ctime> // std::gmtime
+
 #include "png/crc.h"
 #include "png/compression.h"
 
@@ -127,8 +135,9 @@ PNG::Result PNG::TextualData::Parse(const Chunk& chunk, TextualData& data)
 
     if (chunk.Type == ChunkType::tEXt) {
         // Text: n bytes (character string)
-        size_t textStart = data.Keyword.length() + 1;
-        data.Text.append(chunk.Data.begin()+textStart, chunk.Data.end());
+        data.Text.resize(in.GetAvailable());
+        PNG_RETURN_IF_NOT_OK(in.ReadBuffer, data.Text.data(), data.Text.size());
+        PNG_ASSERT(in.GetAvailable() == 0, "PNG::TextualData::Parse tEXt Could not consume Internal ByteStream.");
     } else if (chunk.Type == ChunkType::zTXt) {
         // Compression method: 1 byte
         uint8_t compressionMethod;
@@ -159,7 +168,7 @@ PNG::Result PNG::TextualData::Parse(const Chunk& chunk, TextualData& data)
         } else {
             data.Text.resize(in.GetAvailable());
             PNG_RETURN_IF_NOT_OK(in.ReadBuffer, data.Text.data(), data.Text.size());
-            PNG_ASSERT(in.GetAvailable() == 0, "PNG::TextualData::Parse Could not consume Internal ByteStream.");
+            PNG_ASSERT(in.GetAvailable() == 0, "PNG::TextualData::Parse iTXt Could not consume Internal ByteStream.");
         }
     }
 
