@@ -55,6 +55,7 @@ namespace PNG
         }
 
         virtual Result ReadU8(uint8_t& out) { return ReadBuffer(&out, 1, nullptr); }
+        virtual Result ReadU16(uint16_t& out) { return ReadNumber<uint16_t>(out); }
         virtual Result ReadU32(uint32_t& out) { return ReadNumber<uint32_t>(out); }
         virtual Result ReadU64(uint64_t& out) { return ReadNumber<uint64_t>(out); }
     };
@@ -101,6 +102,7 @@ namespace PNG
         }
 
         virtual Result WriteU8(uint8_t out) { return WriteBuffer(&out, 1); }
+        virtual Result WriteU16(uint16_t out) { return WriteNumber<uint16_t>(out); }
         virtual Result WriteU32(uint32_t out) { return WriteNumber<uint32_t>(out); }
         virtual Result WriteU64(uint64_t out) { return WriteNumber<uint64_t>(out); }
     };
