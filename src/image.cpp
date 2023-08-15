@@ -645,16 +645,13 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, const ImportSettings&
     PNG::Chunk chunk;
     PNG::ImageHeader ihdr;
     PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
+    // ImageHeader::Parse also Validates what was read
     PNG_RETURN_IF_NOT_OK(ImageHeader::Parse, chunk, ihdr);
 
     PNG_LDEBUGF("PNG::Image::Read Reading image {}x{} (bd={},ct={},cm={},fm={},im={}).",
         ihdr.Width, ihdr.Height, ihdr.BitDepth, ihdr.ColorType,
         ihdr.CompressionMethod, ihdr.FilterMethod, ihdr.InterlaceMethod);
 
-    if (ihdr.Width == 0 || ihdr.Height == 0)
-        return Result::InvalidImageSize;
-
-    PNG_RETURN_IF_NOT_OK(ihdr.Validate);
     // If color has 0 samples per component then it is not valid
     size_t samples = ColorType::GetSamples(ihdr.ColorType);
     PNG_ASSERT(samples != 0, "PNG::Image::Read ImageHeader::Validate failed to catch Invalid Color Type.");
@@ -828,11 +825,9 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg, bool asyn
         .InterlaceMethod = cfg.InterlaceMethod,
     };
 
-    // ImageHeader::Validate checks if Width and Height are valid
-    PNG_RETURN_IF_NOT_OK(ihdr.Validate);
-
     {
         Chunk chunk;
+        // ImageHeader::Write also calls ImageHeader::Validate and, therefore checks if Width and Height are valid
         PNG_RETURN_IF_NOT_OK(ihdr.Write, chunk);
         PNG_RETURN_IF_NOT_OK(chunk.Write, out);
         PNG_RETURN_IF_NOT_OK(out.Flush);

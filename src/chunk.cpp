@@ -87,21 +87,23 @@ PNG::Result PNG::ImageHeader::Parse(const Chunk& chunk, ImageHeader& ihdr)
     PNG_RETURN_IF_NOT_OK(inIHDR.ReadU8, ihdr.FilterMethod);
     PNG_RETURN_IF_NOT_OK(inIHDR.ReadU8, ihdr.InterlaceMethod);
 
-    return Result::OK;
+    return ihdr.Validate();
 }
 
 PNG::Result PNG::ImageHeader::Write(Chunk& chunk) const
 {
-    DynamicByteStream stream;
-    PNG_RETURN_IF_NOT_OK(stream.WriteU32, Width);
-    PNG_RETURN_IF_NOT_OK(stream.WriteU32, Height);
+    PNG_RETURN_IF_NOT_OK(Validate);
+
+    DynamicByteStream out;
+    PNG_RETURN_IF_NOT_OK(out.WriteU32, Width);
+    PNG_RETURN_IF_NOT_OK(out.WriteU32, Height);
     uint8_t conf[5]{BitDepth, ColorType, CompressionMethod, FilterMethod, InterlaceMethod};
-    PNG_RETURN_IF_NOT_OK(stream.WriteBuffer, conf, 5);
-    PNG_RETURN_IF_NOT_OK(stream.Flush);
-    PNG_RETURN_IF_NOT_OK(stream.Close);
+    PNG_RETURN_IF_NOT_OK(out.WriteBuffer, conf, 5);
+    PNG_RETURN_IF_NOT_OK(out.Flush);
+    PNG_RETURN_IF_NOT_OK(out.Close);
 
     chunk.Type = ChunkType::IHDR;
-    chunk.Data = std::move(stream.GetBuffer());
+    chunk.Data = std::move(out.GetBuffer());
     chunk.CRC = chunk.CalculateCRC();
     return Result::OK;
 }
