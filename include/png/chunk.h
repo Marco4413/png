@@ -75,7 +75,7 @@ namespace PNG
         bool IsUTF8 = false;
 
         Result Validate() const;
-        static Result Parse(const Chunk& chunk, TextualData& ihdr);
+        static Result Parse(const Chunk& chunk, TextualData& textualData);
         Result Write(Chunk& chunk, CompressionLevel compressionLevel = CompressionLevel::Default) const;
     };
 }
