@@ -746,6 +746,16 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, const ImportSettings&
                 cfg.MetadataOut->push_back(std::move(data));
                 break;
             }
+            case ChunkType::tIME: {
+                if (!cfg.LastModificationTimeOut)
+                    break;
+                if (chunkTypesRead.contains(ChunkType::tIME))
+                    return Result::IllegaltIMEChunk;
+                LastModificationTime lmt;
+                PNG_RETURN_IF_NOT_OK(LastModificationTime::Parse, chunk, lmt);
+                *cfg.LastModificationTimeOut = lmt;
+                break;
+            }
             default:
                 PNG_LDEBUGF("PNG::Image::Read Reading unknown chunk {:.4} (0x{:x}).", (char*)&chunk.Type, chunk.Type);
                 if (!isAux)
@@ -834,6 +844,12 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg, bool asyn
                 PNG_RETURN_IF_NOT_OK(chunk.Write, out);
                 PNG_RETURN_IF_NOT_OK(out.Flush);
             }
+        }
+
+        if (cfg.LastModificationTime) {
+            PNG_RETURN_IF_NOT_OK(cfg.LastModificationTime->Write, chunk);
+            PNG_RETURN_IF_NOT_OK(chunk.Write, out);
+            PNG_RETURN_IF_NOT_OK(out.Flush);
         }
 
         if (ihdr.ColorType == ColorType::PALETTE) {

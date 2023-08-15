@@ -32,6 +32,8 @@ namespace PNG
         const uint32_t tEXt = 0x74455874;
         const uint32_t iTXt = 0x69545874;
         const uint32_t zTXt = 0x7a545874;
+
+        const uint32_t tIME = 0x74494d45;
     }
 
     class Chunk
@@ -77,6 +79,23 @@ namespace PNG
         Result Validate() const;
         static Result Parse(const Chunk& chunk, TextualData& textualData);
         Result Write(Chunk& chunk, CompressionLevel compressionLevel = CompressionLevel::Default) const;
+    };
+
+    struct LastModificationTime
+    {
+        uint16_t Year = 0;
+        uint8_t Month = 0;
+        uint8_t Day = 0;
+        uint8_t Hour = 0;
+        uint8_t Minute = 0;
+        uint8_t Second = 0;
+
+        void Update();
+        static LastModificationTime Now();
+
+        Result Validate() const;
+        static Result Parse(const Chunk& chunk, LastModificationTime& time);
+        Result Write(Chunk& chunk) const;
     };
 }
 

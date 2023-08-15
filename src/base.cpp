@@ -59,6 +59,18 @@ const char* PNG::ResultToString(Result res)
         return "InvalidtRNSSize";
     case Result::InvalidTextualDataKeywordSize:
         return "InvalidTextualDataKeywordSize";
+    case Result::IllegaltIMEChunk:
+        return "IllegaltIMEChunk";
+    case Result::InvalidLMTMonth:
+        return "InvalidLMTMonth";
+    case Result::InvalidLMTDay:
+        return "InvalidLMTDay";
+    case Result::InvalidLMTHour:
+        return "InvalidLMTHour";
+    case Result::InvalidLMTMinute:
+        return "InvalidLMTMinute";
+    case Result::InvalidLMTSecond:
+        return "InvalidLMTSecond";
     case Result::UpdatingClosedStreamError:
         return "UpdatingClosedStreamError";
     case Result::ZLib_NotAvailable:

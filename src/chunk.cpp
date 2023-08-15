@@ -231,3 +231,84 @@ PNG::Result PNG::TextualData::Write(Chunk& chunk, CompressionLevel compressionLe
 
     return Result::OK;
 }
+
+void PNG::LastModificationTime::Update()
+{
+    *this = LastModificationTime::Now();
+}
+
+PNG::LastModificationTime PNG::LastModificationTime::Now()
+{
+    LastModificationTime lmt;
+    auto now = std::chrono::system_clock::now();
+    auto time = std::chrono::system_clock::to_time_t(now);
+    auto utcTime = std::gmtime(&time);
+    if (!utcTime) {
+        PNG_LDEBUG("PNG::LastModificationTime::Now Could not get UTC time.");
+        return lmt;
+    }
+
+    lmt.Year   = 1900u + utcTime->tm_year;
+    lmt.Month  = 1u + utcTime->tm_mon;
+    lmt.Day    = utcTime->tm_mday;
+    lmt.Hour   = utcTime->tm_hour;
+    lmt.Minute = utcTime->tm_min;
+    lmt.Second = utcTime->tm_sec;
+
+    PNG_LDEBUGF("PNG::LastModificationTime::Now Got {}-{}-{} {}:{}:{}.",
+        lmt.Year, (uint16_t)lmt.Month, (uint16_t)lmt.Day, (uint16_t)lmt.Hour, (uint16_t)lmt.Minute, (uint16_t)lmt.Second);
+
+#if PNG_DEBUG
+    auto lmtValid = lmt.Validate();
+    PNG_ASSERTF(lmtValid == Result::OK, "PNG::LastModificationTime::Now Created an invalid instance after getting UTC time ({}).", ResultToString(lmtValid));
+#endif // PNG_DEBUG
+    return lmt;
+}
+
+PNG::Result PNG::LastModificationTime::Validate() const
+{
+    if (Month < 1 || Month > 12)
+        return Result::InvalidLMTMonth;
+    if (Day < 1 || Day > 31)
+        return Result::InvalidLMTDay;
+    if (Hour > 23)
+        return Result::InvalidLMTHour;
+    if (Minute > 59)
+        return Result::InvalidLMTMinute;
+    if (Second > 60)
+        return Result::InvalidLMTSecond;
+    return Result::OK;
+}
+
+PNG::Result PNG::LastModificationTime::Parse(const Chunk& chunk, LastModificationTime& time)
+{
+    if (chunk.Type != ChunkType::tIME)
+        return Result::UnexpectedChunkType;
+    
+    ByteStream in(chunk.Data);
+    PNG_RETURN_IF_NOT_OK(in.ReadU16, time.Year);
+    PNG_RETURN_IF_NOT_OK(in.ReadU8, time.Month);
+    PNG_RETURN_IF_NOT_OK(in.ReadU8, time.Day);
+    PNG_RETURN_IF_NOT_OK(in.ReadU8, time.Hour);
+    PNG_RETURN_IF_NOT_OK(in.ReadU8, time.Minute);
+    PNG_RETURN_IF_NOT_OK(in.ReadU8, time.Second);
+
+    return time.Validate();
+}
+
+PNG::Result PNG::LastModificationTime::Write(Chunk& chunk) const
+{
+    PNG_RETURN_IF_NOT_OK(Validate);
+
+    DynamicByteStream out;
+    PNG_RETURN_IF_NOT_OK(out.WriteU16, Year);
+    uint8_t conf[5]{Month, Day, Hour, Minute, Second};
+    PNG_RETURN_IF_NOT_OK(out.WriteBuffer, conf, 5);
+    PNG_RETURN_IF_NOT_OK(out.Flush);
+    PNG_RETURN_IF_NOT_OK(out.Close);
+
+    chunk.Type = ChunkType::tIME;
+    chunk.Data = std::move(out.GetBuffer());
+    chunk.CRC = chunk.CalculateCRC();
+    return Result::OK;
+}
