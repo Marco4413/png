@@ -416,6 +416,21 @@ void PNG::Image::ApplyRotation180()
     });
 }
 
+void PNG::Image::Blend(const Image& other, size_t x, size_t y, int64_t dx, int64_t dy, WrapMode wrapMode)
+{
+    Utils::Iota<size_t> fgHeight(0, other.m_Height);
+    std::for_each(std::execution::par_unseq, fgHeight.begin(), fgHeight.end(), [this, &other, x, y, dx, dy, wrapMode](size_t fgY) {
+        ImageRowView bgRow = GetRow(y + fgY, dy, wrapMode);
+        for (size_t fgX = 0; fgX < other.m_Width; fgX++) {
+            Color* bgColor = bgRow.At(x + fgX, dx);
+            if (!bgColor)
+                continue;
+            const Color& fgColor = other[fgY][fgX];
+            bgColor->AlphaBlend(fgColor);
+        }
+    });
+}
+
 void PNG::Image::SetSize(size_t width, size_t height)
 {
     delete[] m_Pixels;

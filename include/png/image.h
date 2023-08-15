@@ -26,9 +26,9 @@ namespace PNG
     struct ImportSettings
     {
         ImageHeader* IHDROut = nullptr;
-        Palette_T* PaletteOut = nullptr;
         Metadata_T* MetadataOut = nullptr;
         LastModificationTime* LastModificationTimeOut = nullptr;
+        Palette_T* PaletteOut = nullptr;
     };
 
     struct ExportSettings
@@ -127,6 +127,8 @@ namespace PNG
 
         void ApplyRotation90(bool clockwise = false);
         void ApplyRotation180();
+
+        void Blend(const Image& other, size_t x, size_t y, int64_t dx = 0, int64_t dy = 0, WrapMode wrapMode = WrapMode::None);
 
         void SetSize(size_t width, size_t height);
         inline void Clear() { SetSize(0, 0); }
