@@ -30,6 +30,40 @@ PNG::Result PNG::Chunk::Write(OStream& out) const
     return Result::OK;
 }
 
+PNG::Result PNG::ImageHeader::Validate() const
+{
+    if (Width == 0 || Height == 0)
+        return Result::InvalidImageSize;
+    if (ColorType::GetSamples(ColorType) == 0)
+        return Result::InvalidColorType;
+    if (!ColorType::IsValidBitDepth(ColorType, BitDepth))
+        return Result::InvalidBitDepth;
+
+    switch (CompressionMethod) {
+    case PNG::CompressionMethod::ZLIB:
+        break;
+    default:
+        return Result::UnknownCompressionMethod;
+    }
+
+    switch (FilterMethod) {
+    case PNG::FilterMethod::ADAPTIVE_FILTERING:
+        break;
+    default:
+        return Result::UnknownFilterMethod;
+    }
+
+    switch (InterlaceMethod) {
+    case PNG::InterlaceMethod::NONE:
+    case PNG::InterlaceMethod::ADAM7:
+        break;
+    default:
+        return Result::UnknownInterlaceMethod;
+    }
+
+    return Result::OK;
+}
+
 PNG::Result PNG::ImageHeader::Parse(const Chunk& chunk, ImageHeader& ihdr)
 {
     if (chunk.Type != ChunkType::IHDR)

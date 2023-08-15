@@ -61,6 +61,7 @@ namespace PNG
         uint8_t FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
         uint8_t InterlaceMethod = InterlaceMethod::NONE;
 
+        Result Validate() const;
         static Result Parse(const Chunk& chunk, ImageHeader& ihdr);
         Result Write(Chunk& chunk) const;
     };

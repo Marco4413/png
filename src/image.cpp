@@ -654,12 +654,10 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, const ImportSettings&
     if (ihdr.Width == 0 || ihdr.Height == 0)
         return Result::InvalidImageSize;
 
+    PNG_RETURN_IF_NOT_OK(ihdr.Validate);
     // If color has 0 samples per component then it is not valid
     size_t samples = ColorType::GetSamples(ihdr.ColorType);
-    if (samples == 0)
-        return Result::InvalidColorType;
-    if (!ColorType::IsValidBitDepth(ihdr.ColorType, ihdr.BitDepth))
-        return Result::InvalidBitDepth;
+    PNG_ASSERT(samples != 0, "PNG::Image::Read ImageHeader::Validate failed to catch Invalid Color Type.");
 
     Palette_T palette;
 
@@ -819,6 +817,9 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg, bool asyn
         .FilterMethod = FilterMethod::ADAPTIVE_FILTERING,
         .InterlaceMethod = cfg.InterlaceMethod,
     };
+
+    // ImageHeader::Validate checks if Width and Height are valid
+    PNG_RETURN_IF_NOT_OK(ihdr.Validate);
 
     {
         Chunk chunk;
