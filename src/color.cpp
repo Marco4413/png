@@ -64,8 +64,9 @@ PNG::Color& PNG::Color::AlphaBlend(const Color& other)
     if (other.A < 1.0e-6f)
         return *this;
     float a0 = other.A + A * (1.0f - other.A);
-    *this *= 1.0f - other.A;
-    *this += other;
+    *this *= this->A * (1.0f - other.A);
+    *this += other * other.A;
+    *this /= a0;
     this->A = a0;
     return this->Clamp();
 }
