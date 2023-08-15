@@ -12,7 +12,7 @@
 
 namespace PNG
 {
-    class TextualData; // Forward Declaration
+    struct TextualData; // Forward Declaration
     using Metadata_T = std::vector<TextualData>;
 
     namespace ChunkType
