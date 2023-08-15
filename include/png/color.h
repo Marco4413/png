@@ -59,6 +59,7 @@ namespace PNG
         Color(double gray)
             : Color((float)gray) { }
 
+        Color& AlphaBlend(const Color& other);
         Color& Clamp();
         
         Color& operator+=(const Color& other);

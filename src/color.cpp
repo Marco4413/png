@@ -57,6 +57,19 @@ size_t PNG::ColorType::GetBytesPerPixel(uint8_t colorType, size_t bitDepth)
     return samples * GetBytesPerSample(bitDepth);
 }
 
+// https://en.wikipedia.org/wiki/Alpha_compositing
+PNG::Color& PNG::Color::AlphaBlend(const Color& other)
+{
+    // If the color we're blending with is close to full transparency, don't bother to blend it
+    if (other.A < 1.0e-6f)
+        return *this;
+    float a0 = other.A + A * (1.0f - other.A);
+    *this *= 1.0f - other.A;
+    *this += other;
+    this->A = a0;
+    return this->Clamp();
+}
+
 PNG::Color& PNG::Color::Clamp()
 {
     R = std::clamp<float>(R, 0.0, 1.0);
