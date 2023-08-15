@@ -25,7 +25,7 @@ namespace PNG
 
     struct ImportSettings
     {
-        IHDRChunk* IHDROut = nullptr;
+        ImageHeader* IHDROut = nullptr;
         Palette_T* PaletteOut = nullptr;
         Metadata_T* MetadataOut = nullptr;
     };

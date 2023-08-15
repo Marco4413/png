@@ -641,11 +641,11 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, const ImportSettings&
     if (memcmp(sig, PNG_SIGNATURE, PNG_SIGNATURE_LEN) != 0)
         return Result::InvalidSignature;
 
-    // Reading IHDR (Image Header)
+    // Reading IHDR
     PNG::Chunk chunk;
-    PNG::IHDRChunk ihdr;
+    PNG::ImageHeader ihdr;
     PNG_RETURN_IF_NOT_OK(Chunk::Read, in, chunk);
-    PNG_RETURN_IF_NOT_OK(IHDRChunk::Parse, chunk, ihdr);
+    PNG_RETURN_IF_NOT_OK(ImageHeader::Parse, chunk, ihdr);
 
     PNG_LDEBUGF("PNG::Image::Read Reading image {}x{} (bd={},ct={},cm={},fm={},im={}).",
         ihdr.Width, ihdr.Height, ihdr.BitDepth, ihdr.ColorType,
@@ -810,14 +810,15 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg, bool asyn
     PNG_RETURN_IF_NOT_OK(out.WriteBuffer, PNG_SIGNATURE, PNG_SIGNATURE_LEN);
     PNG_RETURN_IF_NOT_OK(out.Flush);
 
-    IHDRChunk ihdr;
-    ihdr.Width = (uint32_t)m_Width;
-    ihdr.Height = (uint32_t)m_Height;
-    ihdr.BitDepth = (uint8_t)cfg.BitDepth;
-    ihdr.ColorType = cfg.ColorType;
-    ihdr.CompressionMethod = CompressionMethod::ZLIB;
-    ihdr.FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
-    ihdr.InterlaceMethod = cfg.InterlaceMethod;
+    ImageHeader ihdr {
+        .Width = (uint32_t)m_Width,
+        .Height = (uint32_t)m_Height,
+        .BitDepth = (uint8_t)cfg.BitDepth,
+        .ColorType = cfg.ColorType,
+        .CompressionMethod = CompressionMethod::ZLIB,
+        .FilterMethod = FilterMethod::ADAPTIVE_FILTERING,
+        .InterlaceMethod = cfg.InterlaceMethod,
+    };
 
     {
         Chunk chunk;

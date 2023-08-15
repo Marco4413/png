@@ -30,7 +30,7 @@ PNG::Result PNG::Chunk::Write(OStream& out) const
     return Result::OK;
 }
 
-PNG::Result PNG::IHDRChunk::Parse(const Chunk& chunk, IHDRChunk& ihdr)
+PNG::Result PNG::ImageHeader::Parse(const Chunk& chunk, ImageHeader& ihdr)
 {
     if (chunk.Type != ChunkType::IHDR)
         return Result::UnexpectedChunkType;
@@ -48,7 +48,7 @@ PNG::Result PNG::IHDRChunk::Parse(const Chunk& chunk, IHDRChunk& ihdr)
     return Result::OK;
 }
 
-PNG::Result PNG::IHDRChunk::Write(Chunk& chunk) const
+PNG::Result PNG::ImageHeader::Write(Chunk& chunk) const
 {
     DynamicByteStream stream;
     PNG_RETURN_IF_NOT_OK(stream.WriteU32, Width);

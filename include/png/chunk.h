@@ -4,7 +4,10 @@
 #define _PNG_CHUNK_H
 
 #include "png/base.h"
+#include "png/color.h"
 #include "png/compression.h"
+#include "png/filter.h"
+#include "png/interlace.h"
 #include "png/stream.h"
 
 namespace PNG
@@ -48,22 +51,17 @@ namespace PNG
         Result Write(OStream& out) const;
     };
 
-    class IHDRChunk
+    struct ImageHeader
     {
-    public:
-        uint32_t Width;
-        uint32_t Height;
-        uint8_t BitDepth;
-        uint8_t ColorType;
-        uint8_t CompressionMethod;
-        uint8_t FilterMethod;
-        uint8_t InterlaceMethod;
+        uint32_t Width = 0;
+        uint32_t Height = 0;
+        uint8_t BitDepth = 8;
+        uint8_t ColorType = ColorType::RGBA;
+        uint8_t CompressionMethod = CompressionMethod::ZLIB;
+        uint8_t FilterMethod = FilterMethod::ADAPTIVE_FILTERING;
+        uint8_t InterlaceMethod = InterlaceMethod::NONE;
 
-        IHDRChunk() = default;
-        IHDRChunk(const IHDRChunk&) = default;
-        IHDRChunk& operator=(const IHDRChunk&) = default;
-    
-        static Result Parse(const Chunk& chunk, IHDRChunk& ihdr);
+        static Result Parse(const Chunk& chunk, ImageHeader& ihdr);
         Result Write(Chunk& chunk) const;
     };
 
