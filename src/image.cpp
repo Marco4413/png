@@ -54,7 +54,7 @@
             case WrapMode::Clamp: \
                 return ImageViewClass((*this)[0], m_Width, wrapMode); \
             case WrapMode::Repeat: { \
-                size_t bottomOffset = ((size_t)-dy) % m_Height; \
+                size_t bottomOffset = ((size_t)-dy - y) % m_Height; \
                 return ImageViewClass((*this)[m_Height - 1 - bottomOffset], m_Width, wrapMode); \
             } \
             default: \
@@ -88,7 +88,7 @@
             case PNG::WrapMode::Clamp: \
                 return &Data[0]; \
             case PNG::WrapMode::Repeat: { \
-                size_t rightOffset = ((size_t)-dx) % Width; \
+                size_t rightOffset = ((size_t)-dx - x) % Width; \
                 return &Data[Width - 1 - rightOffset]; \
             } \
             default: \
