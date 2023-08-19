@@ -806,8 +806,11 @@ PNG::Result PNG::Image::Read(IStream& in, PNG::Image& out, const ImportSettings&
     PNG_LDEBUG("PNG::Image::Read Waiting for Deinterlacer.");
     deinterlacer.wait();
 
+    PNG_LDEBUG("PNG::Image::Read Checking IDAT Reader result.");
     PNG_RETURN_IF_NOT_OK(reader.get);
+    PNG_LDEBUG("PNG::Image::Read Checking IDAT Inflater result.");
     PNG_RETURN_IF_NOT_OK(inflater.get);
+    PNG_LDEBUG("PNG::Image::Read Checking Deinterlacer result.");
     PNG_RETURN_IF_NOT_OK(deinterlacer.get);
 
     PNG_LDEBUG("PNG::Image::Read Loading raw pixels into Image.");
@@ -940,20 +943,28 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg, bool asyn
         return Result::OK;
     });
 
+    PNG_LDEBUG("PNG::Image::Write Waiting for Raw Writer.");
     rawWriter.wait();
     rawImage.Close();
 
+    PNG_LDEBUG("PNG::Image::Write Waiting for Interlacer.");
     interlacer.wait();
     inf.Close();
 
+    PNG_LDEBUG("PNG::Image::Write Waiting for IDAT Deflater.");
     deflater.wait();
     def.Close();
 
+    PNG_LDEBUG("PNG::Image::Write Waiting for IDAT Writer.");
     idatWriter.wait();
 
+    PNG_LDEBUG("PNG::Image::Write Checking Raw Writer result.");
     PNG_RETURN_IF_NOT_OK(rawWriter.get);
+    PNG_LDEBUG("PNG::Image::Write Checking Interlacer result.");
     PNG_RETURN_IF_NOT_OK(interlacer.get);
+    PNG_LDEBUG("PNG::Image::Write Checking IDAT Deflater result.");
     PNG_RETURN_IF_NOT_OK(deflater.get);
+    PNG_LDEBUG("PNG::Image::Write Checking IDAT Writer result.");
     PNG_RETURN_IF_NOT_OK(idatWriter.get);
 
     {
