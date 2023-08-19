@@ -43,6 +43,9 @@ PNG::Result PNG::Adam7::InterlacePixels(uint8_t filterMethod, size_t width, size
             }
         }
 
+        if (passImage.size() == 0)
+            continue;
+
         // passImage.size() = passWidth * pixelSize * passHeight 
         // passImage.size() / (pixelSize * passHeight) = passWidth
         size_t passWidth = passImage.size() / (pixelSize * passHeight);
@@ -75,10 +78,16 @@ PNG::Result PNG::Adam7::DeinterlacePixels(uint8_t filterMethod, size_t width, si
         if (lastRowSize != 0 && lastRowSize > STARTING_COL[pass])
             passWidth++;
 
+        if (passWidth == 0)
+            continue;
+
         size_t passHeight = height / ROW_OFFSET[pass];
         size_t lastColSize = height % ROW_OFFSET[pass];
         if (lastColSize != 0 && lastColSize > STARTING_ROW[pass])
             passHeight++;
+
+        if (passHeight == 0)
+            continue;
 
         PNG_RETURN_IF_NOT_OK(UnfilterPixels, filterMethod, passWidth, passHeight, bitDepth*samples, in, passImage);
 
