@@ -83,6 +83,9 @@ namespace PNG
         public:
             constexpr Iota(IotaT from, IotaT to)
                 : From(to > from ? from : to), To(to > from ? to : from) { }
+
+            constexpr Iota(IotaT to)
+                : Iota(0, to) { }
             
             Iterator begin() const { return Iterator(From); }
             Iterator end() const { return Iterator(To); }
