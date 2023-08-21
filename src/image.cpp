@@ -175,37 +175,41 @@ void PNG::Image::Crop(size_t left, size_t top, size_t right, size_t bottom)
     }
 
     Image cropped(m_Width - (left + right), m_Height - (top + bottom));
-    for (size_t y = 0; y < cropped.m_Height; y++)
+    Utils::Iota<size_t> cropHeight(0, cropped.m_Height);
+    // This is safe to do in parallel because threads do not cross scanlines when writing.
+    std::for_each(std::execution::par_unseq, cropHeight.begin(), cropHeight.end(), [this, &cropped, top, left](size_t y) {
         memcpy(cropped[y], &(*this)[y+top][left], cropped.m_Width * sizeof(Color));
+    });
+
     *this = std::move(cropped);
 }
 
 void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scalingMethod)
 {
-    Image src(std::move(*this));
+    const Image src(std::move(*this));
     SetSize(newWidth, newHeight);
-    Image& dst = *this;
 
-    if (!(dst.m_Width && dst.m_Height &&
+    if (!(m_Width && m_Height &&
         src.m_Width && src.m_Height))
         return;
     
     double scaleX = (src.m_Width-1.0) / (m_Width-1.0);
     double scaleY = (src.m_Height-1.0) / (m_Height-1.0);
-    
+
+    Utils::Iota<size_t> imgHeight(0, m_Height);
     switch (scalingMethod) {
     case ScalingMethod::Nearest:
-        for (size_t y = 0; y < m_Height; y++) {
+        std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, &src, scaleX, scaleY](size_t y) {
             size_t srcy = (size_t)std::floor(y * scaleY + 0.5);
             for (size_t x = 0; x < m_Width; x++) {
                 size_t srcx = (size_t)std::floor(x * scaleX + 0.5);
-                dst[y][x] = src[srcy][srcx];
+                (*this)[y][x] = src[srcy][srcx];
             }
-        }
+        });
         break;
     // https://en.wikipedia.org/wiki/Bilinear_interpolation
     case ScalingMethod::Bilinear:
-        for (size_t y = 0; y < m_Height; y++) {
+        std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, &src, scaleX, scaleY](size_t y) {
             double cy = y * scaleY;
             size_t srcy = (size_t)std::floor(cy);
             for (size_t x = 0; x < m_Width; x++) {
@@ -218,12 +222,11 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
                 const Color* col12 = src.At(srcx, srcy, 0, 1, col11);
                 const Color* col22 = src.At(srcx, srcy, 1, 1, col11);
                 
-                Color colY1 = Lerp(cx-srcx, *col11, *col21);
-                Color colY2 = Lerp(cx-srcx, *col12, *col22);
-                dst[y][x]   = Lerp(cy-srcy,  colY1,  colY2);
-                dst[y][x].Clamp();
+                Color colY1   = Lerp(cx-srcx, *col11, *col21);
+                Color colY2   = Lerp(cx-srcx, *col12, *col22);
+                (*this)[y][x] = Lerp(cy-srcy,  colY1,  colY2).Clamp();
             }
-        }
+        });
         break;
     default:
         PNG_UNREACHABLEF("PNG::Image::Resize case missing ({}).", (int)scalingMethod);
@@ -263,30 +266,41 @@ void PNG::Image::ApplyKernel(const Kernel& kernel, WrapMode wrapMode)
 
 void PNG::Image::ApplyDithering(const Palette_T& palette, DitheringMethod ditheringMethod)
 {
-    for (size_t y = 0; y < m_Height; y++) {
-        for (size_t x = 0; x < m_Width; x++) {
-            // Clamping Color to remove error diffusion artifacts
-            // This can't be a const& because of the assignment below
-            const Color color = (*this)[y][x].Clamp();
+    switch (ditheringMethod) {
+    case DitheringMethod::None: {
+        // Since DitheringMethod::None has no error diffusion it can be done with multi-threading
+        Utils::Iota<size_t> imgHeight(0, m_Height);
+        std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, &palette, ditheringMethod](size_t y) {
+            for (size_t x = 0; x < m_Width; x++) {
+                Color& color = (*this)[y][x].Clamp();
+                color = palette[FindClosestPaletteColor(color, palette)];
+            }
+        });
+        break;
+    }
+    default:
+        for (size_t y = 0; y < m_Height; y++) {
+            for (size_t x = 0; x < m_Width; x++) {
+                // Clamping Color to remove error diffusion artifacts
+                // This can't be a const& because of the assignment below
+                const Color color = (*this)[y][x].Clamp();
 
-            // Find closest palette color
-            const Color& newColor = palette[FindClosestPaletteColor(color, palette)];
+                // Find closest palette color
+                const Color& newColor = palette[FindClosestPaletteColor(color, palette)];
 
-            (*this)[y][x] = newColor; // This changes `color` if it's a const&
-            // No need to apply error diffusion
-            if (ditheringMethod == DitheringMethod::None)
-                continue;
+                (*this)[y][x] = newColor; // This changes `color` if it's a const&
 
-            // Apply error diffusion
-            Color quantError = color - newColor;
+                // Apply error diffusion
+                Color quantError = color - newColor;
 
-            switch (ditheringMethod) {
-            // We do a little bit of macro magic.
-            PNG_FILL_DITHERING_CASES(*this, quantError);
-            case DitheringMethod::None:
-                PNG_UNREACHABLE("PNG::Image::ApplyDithering Early continue failed for None dithering method.");
-            default:
-                PNG_UNREACHABLEF("PNG::Image::ApplyDithering case missing ({}).", (int)ditheringMethod);
+                switch (ditheringMethod) {
+                // We do a little bit of macro magic.
+                PNG_FILL_DITHERING_CASES(*this, quantError);
+                case DitheringMethod::None:
+                    PNG_UNREACHABLE("PNG::Image::ApplyDithering Early switch failed for None dithering method.");
+                default:
+                    PNG_UNREACHABLEF("PNG::Image::ApplyDithering case missing ({}).", (int)ditheringMethod);
+                }
             }
         }
     }
@@ -294,7 +308,8 @@ void PNG::Image::ApplyDithering(const Palette_T& palette, DitheringMethod dither
 
 void PNG::Image::ApplyGrayscale()
 {
-    for (size_t y = 0; y < m_Height; y++) {
+    Utils::Iota<size_t> imgHeight(0, m_Height);
+    std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this](size_t y) {
         for (size_t x = 0; x < m_Width; x++) {
             Color& color = (*this)[y][x];
             float grayscale = (float)((color.R + color.G + color.B) / 3.0);
@@ -302,7 +317,7 @@ void PNG::Image::ApplyGrayscale()
             color.G = grayscale;
             color.B = grayscale;
         }
-    }
+    });
 }
 
 // https://en.wikipedia.org/wiki/Gaussian_blur
