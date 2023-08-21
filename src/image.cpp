@@ -175,7 +175,7 @@ void PNG::Image::Crop(size_t left, size_t top, size_t right, size_t bottom)
     }
 
     Image cropped(m_Width - (left + right), m_Height - (top + bottom));
-    Utils::Iota<size_t> cropHeight(0, cropped.m_Height);
+    Utils::Iota<size_t> cropHeight(cropped.m_Height);
     // This is safe to do in parallel because threads do not cross scanlines when writing.
     std::for_each(std::execution::par_unseq, cropHeight.begin(), cropHeight.end(), [this, &cropped, top, left](size_t y) {
         memcpy(cropped[y], &(*this)[y+top][left], cropped.m_Width * sizeof(Color));
@@ -196,7 +196,7 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
     double scaleX = (src.m_Width-1.0) / (m_Width-1.0);
     double scaleY = (src.m_Height-1.0) / (m_Height-1.0);
 
-    Utils::Iota<size_t> imgHeight(0, m_Height);
+    Utils::Iota<size_t> imgHeight(m_Height);
     switch (scalingMethod) {
     case ScalingMethod::Nearest:
         std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, &src, scaleX, scaleY](size_t y) {
@@ -241,7 +241,7 @@ void PNG::Image::ApplyKernel(const Kernel& kernel, WrapMode wrapMode)
     const Image src(std::move(*this));
     SetSize(src.m_Width, src.m_Height);
 
-    Utils::Iota<size_t> imgHeight(0, m_Height);
+    Utils::Iota<size_t> imgHeight(m_Height);
     std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, &kernel, &src, wrapMode](size_t y) {
         for (size_t x = 0; x < m_Width; x++) {
             Color finalColor(0.0, 0.0);
@@ -269,7 +269,7 @@ void PNG::Image::ApplyDithering(const Palette_T& palette, DitheringMethod dither
     switch (ditheringMethod) {
     case DitheringMethod::None: {
         // Since DitheringMethod::None has no error diffusion it can be done with multi-threading
-        Utils::Iota<size_t> imgHeight(0, m_Height);
+        Utils::Iota<size_t> imgHeight(m_Height);
         std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, &palette, ditheringMethod](size_t y) {
             for (size_t x = 0; x < m_Width; x++) {
                 Color& color = (*this)[y][x].Clamp();
@@ -308,7 +308,7 @@ void PNG::Image::ApplyDithering(const Palette_T& palette, DitheringMethod dither
 
 void PNG::Image::ApplyGrayscale()
 {
-    Utils::Iota<size_t> imgHeight(0, m_Height);
+    Utils::Iota<size_t> imgHeight(m_Height);
     std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this](size_t y) {
         for (size_t x = 0; x < m_Width; x++) {
             Color& color = (*this)[y][x];
@@ -349,7 +349,7 @@ void PNG::Image::ApplySharpening(double amount, double radius, double threshold,
 
     double threshold2 = threshold * threshold;
 
-    Utils::Iota<size_t> imgHeight(0, m_Height);
+    Utils::Iota<size_t> imgHeight(m_Height);
     std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, &blurred, amount, threshold2](size_t y) {
         for (size_t x = 0; x < m_Width; x++) {
             Color colorDiff = (*this)[y][x] - blurred[y][x];
@@ -364,7 +364,7 @@ void PNG::Image::ApplySharpening(double amount, double radius, double threshold,
 
 void PNG::Image::ApplyVerticalFlip()
 {
-    Utils::Iota<size_t> imgHalfHeight(0, m_Height/2);
+    Utils::Iota<size_t> imgHalfHeight(m_Height/2);
     std::for_each(std::execution::par_unseq, imgHalfHeight.begin(), imgHalfHeight.end(), [this](size_t y) {
         Color* topRow = (*this)[y];
         Color* botRow = (*this)[m_Height-y-1];
@@ -379,7 +379,7 @@ void PNG::Image::ApplyVerticalFlip()
 
 void PNG::Image::ApplyHorizontalFlip()
 {
-    Utils::Iota<size_t> imgHeight(0, m_Height);
+    Utils::Iota<size_t> imgHeight(m_Height);
     std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this](size_t y) {
         Color* row = (*this)[y];
         for (size_t x = 0; x < m_Width/2; x++) {
@@ -395,7 +395,7 @@ void PNG::Image::ApplyRotation90(bool clockwise)
 {
     Image rotated(m_Height, m_Width);
 
-    Utils::Iota<size_t> imgHeight(0, m_Height);
+    Utils::Iota<size_t> imgHeight(m_Height);
     std::for_each(std::execution::par_unseq, imgHeight.begin(), imgHeight.end(), [this, clockwise, &rotated](size_t y) {
         if (clockwise) {
             for (size_t x = 0; x < m_Width; x++) {
@@ -416,7 +416,7 @@ void PNG::Image::ApplyRotation90(bool clockwise)
 void PNG::Image::ApplyRotation180()
 {
     // Half height is rounded up
-    Utils::Iota<size_t> imgHalfHeight(0, m_Height/2 + (m_Height & 1));
+    Utils::Iota<size_t> imgHalfHeight(m_Height/2 + (m_Height & 1));
     std::for_each(std::execution::par_unseq, imgHalfHeight.begin(), imgHalfHeight.end(), [this](size_t y) {
         Color* topRow = (*this)[y];
         Color* botRow = (*this)[m_Height-y-1];
@@ -433,7 +433,7 @@ void PNG::Image::ApplyRotation180()
 
 void PNG::Image::Blend(const Image& other, size_t x, size_t y, int64_t dx, int64_t dy, WrapMode wrapMode)
 {
-    Utils::Iota<size_t> fgHeight(0, other.m_Height);
+    Utils::Iota<size_t> fgHeight(other.m_Height);
     std::for_each(std::execution::par_unseq, fgHeight.begin(), fgHeight.end(), [this, &other, x, y, dx, dy, wrapMode](size_t fgY) {
         ImageRowView bgRow = GetRow(y + fgY, dy, wrapMode);
         for (size_t fgX = 0; fgX < other.m_Width; fgX++) {
