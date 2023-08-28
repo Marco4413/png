@@ -15,6 +15,8 @@ Solutions and Make files are not pushed to this repo, you should run `premake5` 
 Build output can be found inside either `build/Debug` or `build/Release` depending on the configuration. If building `png` (the static
 library's project) the library file will be found in the same directories, and include files can be found inside the `include` folder.
 
+If you want to see an example of linking with `png` check out the `png-dev` project inside [`premake5.lua`](https://github.com/Marco4413/png/blob/master/premake5.lua#L13).
+
 ### TODO
 
 1. ~~Splitting the project into multiple files~~
