@@ -18,7 +18,13 @@ project "png-dev"
    location "build"
    targetdir "%{prj.location}/%{cfg.buildcfg}"
 
+   -- You can remove fmt from include directories by defining 'PNG_NO_LOGGING',
+   --  which tells png to not include any sort of logging in header files
+   -- defines "PNG_NO_LOGGING"
    includedirs { "include", "libs/fmt/include", }
+   -- If you do not want to link with fmt,
+   --  you must define 'PNG_NO_LOGGING' when building png as a static lib
+   -- zlib is a required dependency since it is needed to de/inflate Images
    links { "png", "fmt", "zlib", }
    files "src/main.cpp"
 
