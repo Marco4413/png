@@ -18,11 +18,9 @@ project "png-dev"
    location "build"
    targetdir "%{prj.location}/%{cfg.buildcfg}"
 
-   includedirs { "libs/fmt/include", "libs/zlib/include", }
-   links { "fmt", "zlib", }
-   
-   includedirs "include"
-   files { "src/**.cpp", "include/**.h", }
+   includedirs { "include", "libs/fmt/include", }
+   links { "png", "fmt", "zlib", }
+   files "src/main.cpp"
 
    filter "toolset:gcc"
       buildoptions { "-Wall", "-Wextra", }
@@ -31,7 +29,7 @@ project "png-dev"
       buildoptions "/W3"
 
    filter "system:linux"
-      links { "pthread", "tbb" }
+      links { "pthread", "tbb", }
 
    filter "configurations:Debug"
       defines "PNG_DEBUG"
