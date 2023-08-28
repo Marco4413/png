@@ -8,7 +8,13 @@
 #include <cstring>
 #include <vector>
 
+#ifdef PNG_NO_LOGGING
+#define PNG_PRINTF(...) (void)(0)
+#else // PNG_NO_LOGGING
 #include "fmt/color.h"
+
+#define PNG_PRINTF fmt::print
+#endif // PNG_NO_LOGGING
 
 #define PNG_RETURN_IF_NOT_OK(func, ...) \
     do { \
@@ -22,7 +28,7 @@
 #define PNG_ASSERT(cond, msg) \
     do { \
         if (!(cond)) { \
-            fmt::print(stderr, fmt::fg(fmt::color::red), "{}:{}: Assert ({}) failed: {}\n", __FILE__, __LINE__, #cond, msg); \
+            PNG_PRINTF(stderr, fmt::fg(fmt::color::red), "{}:{}: Assert ({}) failed: {}\n", __FILE__, __LINE__, #cond, msg); \
             std::exit(1); \
         } \
     } while (0)
@@ -30,17 +36,17 @@
 #define PNG_ASSERTF(cond, sfmt, ...) \
     do { \
         if (!(cond)) { \
-            fmt::print(stderr, fmt::fg(fmt::color::red), "{}:{}: Assert ({}) failed: {}\n", __FILE__, __LINE__, #cond, \
+            PNG_PRINTF(stderr, fmt::fg(fmt::color::red), "{}:{}: Assert ({}) failed: {}\n", __FILE__, __LINE__, #cond, \
                 fmt::format(sfmt, __VA_ARGS__ )); \
             std::exit(1); \
         } \
     } while (0)
 
 #define PNG_LDEBUG(msg) \
-    fmt::print(stdout, fmt::fg(fmt::color::light_blue), "{}:{}: Debug: {}\n", __FILE__, __LINE__, msg)
+    PNG_PRINTF(stdout, fmt::fg(fmt::color::light_blue), "{}:{}: Debug: {}\n", __FILE__, __LINE__, msg)
 
 #define PNG_LDEBUGF(sfmt, ...) \
-    fmt::print(stdout, fmt::fg(fmt::color::light_blue), "{}:{}: Debug: {}\n", __FILE__, __LINE__, \
+    PNG_PRINTF(stdout, fmt::fg(fmt::color::light_blue), "{}:{}: Debug: {}\n", __FILE__, __LINE__, \
         fmt::format(sfmt, __VA_ARGS__ )); \
 
 #else // PNG_DEBUG
@@ -55,13 +61,13 @@
 
 #define PNG_UNREACHABLE(msg) \
     do { \
-        fmt::print(stderr, fmt::fg(fmt::color::red), "{}:{}: Unreachable: {}\n", __FILE__, __LINE__, msg); \
+        PNG_PRINTF(stderr, fmt::fg(fmt::color::red), "{}:{}: Unreachable: {}\n", __FILE__, __LINE__, msg); \
         std::exit(1); \
     } while (0)
 
 #define PNG_UNREACHABLEF(sfmt, ...) \
     do { \
-        fmt::print(stderr, fmt::fg(fmt::color::red), "{}:{}: Unreachable: {}\n", __FILE__, __LINE__, \
+        PNG_PRINTF(stderr, fmt::fg(fmt::color::red), "{}:{}: Unreachable: {}\n", __FILE__, __LINE__, \
             fmt::format(sfmt, __VA_ARGS__ )); \
         std::exit(1); \
     } while (0)
