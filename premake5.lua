@@ -29,10 +29,10 @@ project "png-dev"
    files "src/main.cpp"
 
    filter "toolset:gcc"
-      buildoptions { "-Wall", "-Wextra", }
+      buildoptions { "-Wall", "-Wextra", "-Wpedantic", "-Werror", }
 
    filter "toolset:msc"
-      buildoptions "/W3"
+      buildoptions { "/Wall", "/WX", }
 
    filter "system:linux"
       links { "pthread", "tbb", }
