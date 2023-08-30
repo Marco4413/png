@@ -222,9 +222,9 @@ void PNG::Image::Resize(size_t newWidth, size_t newHeight, ScalingMethod scaling
                 const Color* col12 = src.At(srcx, srcy, 0, 1, col11);
                 const Color* col22 = src.At(srcx, srcy, 1, 1, col11);
                 
-                Color colY1   = Lerp(cx-srcx, *col11, *col21);
-                Color colY2   = Lerp(cx-srcx, *col12, *col22);
-                (*this)[y][x] = Lerp(cy-srcy,  colY1,  colY2).Clamp();
+                Color colY1   = Math::Lerp(cx-srcx, *col11, *col21);
+                Color colY2   = Math::Lerp(cx-srcx, *col12, *col22);
+                (*this)[y][x] = Math::Lerp(cy-srcy,  colY1,  colY2).Clamp();
             }
         });
         break;
@@ -333,7 +333,7 @@ void PNG::Image::ApplyGaussianBlur(double stDev, double radius, WrapMode wrapMod
         double y = kY - (double)kernel.AnchorY;
         for (size_t kX = 0; kX < kernel.Width; kX++) {
             double x = kX - (double)kernel.AnchorX;
-            double g = 1 / (2*PNG_PI*stDev2)*std::pow(PNG_E, -(x*x+y*y)/(2*stDev2));
+            double g = 1 / (2*Math::PI*stDev2)*std::pow(Math::E, -(x*x+y*y)/(2*stDev2));
             kernel[kY][kX] = g;
         }
     }

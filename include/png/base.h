@@ -92,9 +92,6 @@
         std::exit(1); \
     } while (0)
 
-#define PNG_PI 3.141592653589793
-#define PNG_E  2.718281828459045
-
 namespace PNG
 {
     constexpr size_t PNG_SIGNATURE_LEN = 8;
@@ -177,12 +174,18 @@ namespace PNG
 
     inline size_t BitsToBytes(size_t bits) { return bits & 7 ? (bits >> 3) + 1 : bits >> 3; }
 
-    template<typename T>
-    inline T Lerp(double t, const T& x0, const T& x1)
+    namespace Math
     {
-        if (t < 0.0 || t > 1.0)
-            PNG_LDEBUGF("PNG::Lerp t is not in the range [0; 1] {}", t);
-        return (1.0 - t) * x0 + t * x1;
+        constexpr double PI = 3.141592653589793;
+        constexpr double E = 2.718281828459045;
+
+        template<typename T>
+        inline T Lerp(double t, const T& x0, const T& x1)
+        {
+            if (t < 0.0 || t > 1.0)
+                PNG_LDEBUGF("PNG::Lerp t is not in the range [0; 1] {}", t);
+            return (1.0 - t) * x0 + t * x1;
+        }
     }
 } 
 
