@@ -97,8 +97,8 @@
 
 namespace PNG
 {
-    const size_t PNG_SIGNATURE_LEN = 8;
-    const uint8_t PNG_SIGNATURE[PNG_SIGNATURE_LEN] {137, 80, 78, 71, 13, 10, 26, 10};
+    constexpr size_t PNG_SIGNATURE_LEN = 8;
+    constexpr uint8_t PNG_SIGNATURE[PNG_SIGNATURE_LEN] {137, 80, 78, 71, 13, 10, 26, 10};
 
     enum class Result
     {
