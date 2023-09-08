@@ -858,26 +858,23 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg, bool asyn
         .InterlaceMethod = cfg.InterlaceMethod,
     };
 
-    {
+    { // Writing PNG Head
         Chunk chunk;
         // ImageHeader::Write also calls ImageHeader::Validate and, therefore checks if Width and Height are valid
         PNG_RETURN_IF_NOT_OK(ihdr.Write, chunk);
         PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-        PNG_RETURN_IF_NOT_OK(out.Flush);
 
         if (cfg.Metadata) {
             for (size_t i = 0; i < cfg.Metadata->size(); i++) {
                 const TextualData& textualData = (*cfg.Metadata)[i];
                 PNG_RETURN_IF_NOT_OK(textualData.Write, chunk, cfg.CompressionLevel);
                 PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-                PNG_RETURN_IF_NOT_OK(out.Flush);
             }
         }
 
         if (cfg.LastModificationTime) {
             PNG_RETURN_IF_NOT_OK(cfg.LastModificationTime->Write, chunk);
             PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-            PNG_RETURN_IF_NOT_OK(out.Flush);
         }
 
         if (ihdr.ColorType == ColorType::PALETTE) {
@@ -898,9 +895,7 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg, bool asyn
                 }
             }
             chunk.CRC = chunk.CalculateCRC();
-
             PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-            PNG_RETURN_IF_NOT_OK(out.Flush);
 
             // lastAlpha is changed only if cfg.PaletteAlpha is true, so we do not need to check that option
             if (lastAlpha < tRNS.size()) {
@@ -909,9 +904,11 @@ PNG::Result PNG::Image::Write(OStream& out, const ExportSettings& cfg, bool asyn
                 chunk.Data = std::move(tRNS);
                 chunk.CRC = chunk.CalculateCRC();
                 PNG_RETURN_IF_NOT_OK(chunk.Write, out);
-                PNG_RETURN_IF_NOT_OK(out.Flush);
             }
         }
+
+        // Flushing everything at the end should be more efficient, since it reallocates memory only once
+        PNG_RETURN_IF_NOT_OK(out.Flush);
     }
 
     DynamicByteStream rawImage;
