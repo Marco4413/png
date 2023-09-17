@@ -27,6 +27,16 @@ If you want to see an example of linking with `png` check out the `png-dev` proj
 
 ### Resources
 
-- PNG 1.2 spec: [http://www.libpng.org/pub/png/spec/1.2](http://www.libpng.org/pub/png/spec/1.2)
-- Test Image: [https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png](https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png)
+- PNG 1.2 spec: [libpng - 1.2 spec](http://www.libpng.org/pub/png/spec/1.2)
+- Test Image: [Wikipedia - PNG_transparency_demonstration_1.png](https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png)
   - Adam7 Interlace version was created using GIMP.
+- Common Palettes: [Wikipedia - Web Colors](https://en.wikipedia.org/wiki/Web_colors#Web-safe_colors)
+- Alpha Blending: [Wikipedia - Alpha Compositing](https://en.wikipedia.org/wiki/Alpha_compositing)
+- Dithering:
+  - [Wikipedia - Floyd–Steinberg Dithering](https://en.wikipedia.org/wiki/Floyd–Steinberg_dithering)
+  - [Wikipedia - Atkinson Dithering](https://en.wikipedia.org/wiki/Atkinson_dithering)
+- Image Scaling: [Wikipedia - Bilinear Interpolation](https://en.wikipedia.org/wiki/Bilinear_interpolation)
+- Image Filters/Effects:
+  - [Wikipedia - Gaussian Blur](https://en.wikipedia.org/wiki/Gaussian_blur)
+  - [Wikipedia - Unsharp Masking](https://en.wikipedia.org/wiki/Unsharp_masking)
+
